@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTuber Music Player</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .csv-input-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            display: none;
+        }
+
+        .csv-input-section h2 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .csv-input-section input {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+        }
+
+        .csv-input-section button {
+            background: #fff;
+            color: #667eea;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .csv-input-section button:hover {
+            transform: scale(1.05);
+        }
+
+        .albums-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .album-card {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .album-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+        }
+
+        .album-card.active {
+            border-color: #fff;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .album-thumbnail {
+            width: 100%;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3em;
+            font-weight: bold;
+        }
+
+        .album-info h3 {
+            font-size: 1em;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .album-info p {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .playlist-section {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 120px;
+        }
+
+        .playlist-header {
+            margin-bottom: 25px;
+        }
+
+        .playlist-header h2 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .track-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .track-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .track-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .track-item.playing {
+            background: rgba(255,255,255,0.3);
+            border: 2px solid #fff;
+        }
+
+        .track-number {
+            width: 40px;
+            text-align: center;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+
+        .track-info {
+            flex: 1;
+            padding: 0 20px;
+        }
+
+        .track-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .track-artist {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .player-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .now-playing {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .now-playing-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .now-playing-artist {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        .player-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 1.2em;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.1);
+        }
+
+        .control-btn.play {
+            width: 55px;
+            height: 55px;
+            background: #fff;
+            color: #667eea;
+        }
+
+        #youtube-player {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 VTuber Music Player</h1>
+            <p>YouTubeのプレイリストをアルバム風に楽しもう</p>
+        </div>
+
+        <div class="csv-input-section">
+            <h2>Googleスプレッドシートを読み込む</h2>
+            <input type="text" id="csv-url" placeholder="CSVのURL（ファイル→共有→ウェブに公開→CSV形式）">
+            <button onclick="loadCSV()">読み込む</button>
+            <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
+                ※スプレッドシートは「配信枠名」「曲名」「アーティスト名」「URL」の列が必要です
+            </p>
+        </div>
+
+        <div id="albums-container" class="albums-grid"></div>
+        <div id="playlist-container"></div>
+    </div>
+
+    <div class="player" id="player" style="display: none;">
+        <div class="player-content">
+            <div class="now-playing">
+                <div class="now-playing-title" id="current-title">-</div>
+                <div class="now-playing-artist" id="current-artist">-</div>
+            </div>
+            <div class="player-controls">
+                <button class="control-btn" onclick="previousTrack()">⏮</button>
+                <button class="control-btn play" id="play-btn" onclick="togglePlay()">▶</button>
+                <button class="control-btn" onclick="nextTrack()">⏭</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="youtube-player"></div>
+
+    <script>
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=0&single=true&output=csv';
+        
+        let albums = {};
+        let currentAlbum = null;
+        let currentTrackIndex = 0;
+        let player = null;
+        let isPlayerReady = false;
+
+        // YouTube IFrame API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '1',
+                width: '1',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 0,
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        function onPlayerReady() {
+            isPlayerReady = true;
+        }
+
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                document.getElementById('play-btn').textContent = '⏸';
+            } else {
+                document.getElementById('play-btn').textContent = '▶';
+            }
+            
+            if (event.data == YT.PlayerState.ENDED) {
+                nextTrack();
+            }
+        }
+
+        // ページ読み込み時に自動でCSVを読み込む
+        window.addEventListener('DOMContentLoaded', () => {
+            loadCSV();
+        });
+
+        function loadCSV() {
+            const url = CSV_URL;
+
+            document.getElementById('albums-container').innerHTML = '<div class="loading">読み込み中...</div>';
+
+            Papa.parse(url, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processData(results.data);
+                },
+                error: function(error) {
+                    alert('CSVの読み込みに失敗しました: ' + error.message);
+                    document.getElementById('albums-container').innerHTML = '';
+                }
+            });
+        }
+
+        function processData(data) {
+            albums = {};
+            
+            data.forEach(row => {
+                const albumName = row['配信枠名'] || row['アルバム名'] || row['配信名'];
+                const trackName = row['曲名'] || row['タイトル'];
+                const artist = row['アーティスト名'] || row['アーティスト'];
+                const url = row['URL'] || row['url'];
+
+                if (!albumName || !trackName || !url) return;
+
+                if (!albums[albumName]) {
+                    albums[albumName] = {
+                        name: albumName,
+                        tracks: []
+                    };
+                }
+
+                albums[albumName].tracks.push({
+                    title: trackName,
+                    artist: artist || 'Unknown Artist',
+                    url: url
+                });
+            });
+
+            displayAlbums();
+        }
+
+        function displayAlbums() {
+            const container = document.getElementById('albums-container');
+            container.innerHTML = '';
+
+            Object.keys(albums).forEach((albumName, index) => {
+                const album = albums[albumName];
+                const card = document.createElement('div');
+                card.className = 'album-card';
+                card.onclick = () => selectAlbum(albumName);
+                
+                card.innerHTML = `
+                    <div class="album-thumbnail">${(index + 1)}</div>
+                    <div class="album-info">
+                        <h3>${album.name}</h3>
+                        <p>${album.tracks.length} 曲</p>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function selectAlbum(albumName) {
+            currentAlbum = albumName;
+            currentTrackIndex = 0;
+            
+            document.querySelectorAll('.album-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            displayPlaylist();
+        }
+
+        function displayPlaylist() {
+            const album = albums[currentAlbum];
+            let container = document.getElementById('playlist-container');
+            
+            container.innerHTML = `
+                <div class="playlist-section">
+                    <div class="playlist-header">
+                        <h2>${album.name}</h2>
+                        <p>${album.tracks.length} 曲</p>
+                    </div>
+                    <div class="track-list" id="track-list"></div>
+                </div>
+            `;
+
+            const trackList = document.getElementById('track-list');
+            album.tracks.forEach((track, index) => {
+                const item = document.createElement('div');
+                item.className = 'track-item';
+                item.onclick = () => playTrack(index);
+                
+                item.innerHTML = `
+                    <div class="track-number">${index + 1}</div>
+                    <div class="track-info">
+                        <div class="track-title">${track.title}</div>
+                        <div class="track-artist">${track.artist}</div>
+                    </div>
+                `;
+                
+                trackList.appendChild(item);
+            });
+
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function playTrack(index) {
+            if (!currentAlbum || !isPlayerReady) return;
+
+            currentTrackIndex = index;
+            const track = albums[currentAlbum].tracks[index];
+            
+            const videoId = extractVideoId(track.url);
+            const startTime = extractStartTime(track.url);
+
+            if (videoId) {
+                player.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: startTime
+                });
+
+                document.getElementById('current-title').textContent = track.title;
+                document.getElementById('current-artist').textContent = track.artist;
+                document.getElementById('player').style.display = 'block';
+
+                document.querySelectorAll('.track-item').forEach((item, i) => {
+                    item.classList.toggle('playing', i === index);
+                });
+            }
+        }
+
+        function extractVideoId(url) {
+            const match = url.match(/[?&]v=([^&]+)/);
+            return match ? match[1] : null;
+        }
+
+        function extractStartTime(url) {
+            const match = url.match(/[?&]t=(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function togglePlay() {
+            if (!player) return;
+            
+            const state = player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function previousTrack() {
+            if (!currentAlbum) return;
+            
+            if (currentTrackIndex > 0) {
+                playTrack(currentTrackIndex - 1);
+            }
+        }
+
+        function nextTrack() {
+            if (!currentAlbum) return;
+            
+            const album = albums[currentAlbum];
+            if (currentTrackIndex < album.tracks.length - 1) {
+                playTrack(currentTrackIndex + 1);
+            }
+        }
+    </script>
+</body>
+</html>
