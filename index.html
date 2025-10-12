@@ -159,12 +159,20 @@
             gap: 5px;
         }
 
+        [data-theme="dark"] .sort-btn {
+            color: #000;
+        }
+
         .sort-btn:hover {
             opacity: 0.8;
         }
 
         .sort-btn.active {
             background: var(--accent-color);
+        }
+
+        [data-theme="dark"] .sort-btn.active {
+            color: #000;
         }
 
         .search-input {
@@ -199,6 +207,10 @@
             transition: all 0.3s;
         }
 
+        [data-theme="dark"] .search-btn {
+            color: #000;
+        }
+
         .search-btn:hover {
             transform: scale(1.05);
             opacity: 0.9;
@@ -213,6 +225,10 @@
             font-size: 1em;
             cursor: pointer;
             transition: all 0.3s;
+        }
+
+        [data-theme="dark"] .clear-btn {
+            color: #000;
         }
 
         .clear-btn:hover {
@@ -275,35 +291,56 @@
             color: #fff;
         }
 
-        .album-tooltip {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            padding: 10px;
-            font-size: 0.9em;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .album-card:hover .album-tooltip {
-            opacity: 1;
-        }
-
         .album-info h3 {
             font-size: 1em;
             margin-bottom: 5px;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+            position: relative;
         }
 
         .album-info p {
             font-size: 0.9em;
             color: var(--text-secondary);
+        }
+
+        .album-name-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            white-space: normal;
+            max-width: 250px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 10;
+            margin-bottom: 5px;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .album-name-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .album-info h3:hover .album-name-tooltip {
+            opacity: 1;
         }
 
         .playlist-section {
@@ -515,8 +552,7 @@
                 <div class="toggle-switch" onclick="toggleTheme()"></div>
                 <span class="toggle-label">🌙</span>
             </div>
-            <h1>🎵 VTuber Music Player</h1>
-            <p>YouTubeのプレイリストをアルバム風に楽しもう</p>
+            <h1>🦋 Ageha Player 🎵</h1>
         </div>
 
         <div class="search-section">
@@ -711,19 +747,15 @@
             searchQuery = '';
             isSearchMode = false;
             
-            if (currentAlbum && !isSearchMode) {
-                // プレイリスト表示中の場合
-                const tracks = document.querySelectorAll('.track-item');
-                tracks.forEach(track => track.classList.remove('hidden'));
-                
-                const noResults = document.querySelector('.no-results');
-                if (noResults) noResults.remove();
-            } else {
-                // アルバム表示に戻る
-                displayAlbums();
-                document.getElementById('playlist-container').innerHTML = '';
-                currentAlbum = null;
-            }
+            // アルバム表示に戻る
+            displayAlbums();
+            document.getElementById('playlist-container').innerHTML = '';
+            currentAlbum = null;
+            
+            // アルバムの選択状態もクリア
+            document.querySelectorAll('.album-card').forEach(card => {
+                card.classList.remove('active');
+            });
         }
 
         // YouTube IFrame API
@@ -874,25 +906,40 @@
             const container = document.getElementById('albums-container');
             container.innerHTML = '';
 
-            // アルバム名を日付としてソート
-            const albumNames = Object.keys(albums).sort((a, b) => {
-                // 日付を抽出 (YYYY/MM/DD または YYYY-MM-DD 形式を想定)
-                const dateA = extractDate(a);
-                const dateB = extractDate(b);
-                
-                if (!dateA && !dateB) return a.localeCompare(b);
-                if (!dateA) return 1;
-                if (!dateB) return -1;
-                
-                if (sortOrder === 'desc') {
-                    return dateB - dateA; // 降順（新しい順）
-                } else {
-                    return dateA - dateB; // 昇順（古い順）
+            // アルバム名を配列に変換してソート
+            const albumEntries = Object.keys(albums).map(name => ({
+                name: name,
+                date: extractDate(name),
+                album: albums[name]
+            }));
+
+            // 日付でソート
+            albumEntries.sort((a, b) => {
+                // 両方に日付がある場合
+                if (a.date && b.date) {
+                    if (sortOrder === 'desc') {
+                        return b.date - a.date; // 降順（新しい順）
+                    } else {
+                        return a.date - b.date; // 昇順（古い順）
+                    }
                 }
+                
+                // 片方だけ日付がある場合、日付がない方を後ろに
+                if (a.date && !b.date) return -1;
+                if (!a.date && b.date) return 1;
+                
+                // 両方日付がない場合は名前でソート
+                return a.name.localeCompare(b.name);
             });
 
-            albumNames.forEach((albumName, index) => {
-                const album = albums[albumName];
+            console.log('Sorted albums:', albumEntries.map(e => ({
+                name: e.name,
+                date: e.date ? e.date.toISOString().split('T')[0] : 'no date'
+            })));
+
+            albumEntries.forEach((entry, index) => {
+                const albumName = entry.name;
+                const album = entry.album;
                 const card = document.createElement('div');
                 card.className = 'album-card';
                 card.dataset.albumName = albumName;
@@ -903,12 +950,12 @@
                     : `<div class="placeholder">${index + 1}</div>`;
                 
                 card.innerHTML = `
-                    <div class="album-thumbnail">
-                        ${thumbnailHtml}
-                        <div class="album-tooltip">${album.name}</div>
-                    </div>
+                    <div class="album-thumbnail">${thumbnailHtml}</div>
                     <div class="album-info">
-                        <h3>${album.name}</h3>
+                        <h3>
+                            ${album.name}
+                            <span class="album-name-tooltip">${album.name}</span>
+                        </h3>
                         <p>${album.tracks.length} 曲</p>
                     </div>
                 `;
