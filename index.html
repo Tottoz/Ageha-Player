@@ -37,45 +37,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .csv-input-section {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-            display: none;
-        }
-
-        .csv-input-section h2 {
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-
-        .csv-input-section input {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1em;
-            margin-bottom: 15px;
-        }
-
-        .csv-input-section button {
-            background: #fff;
-            color: #667eea;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 10px;
-            font-size: 1em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .csv-input-section button:hover {
-            transform: scale(1.05);
-        }
-
         .albums-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -107,9 +68,23 @@
         .album-thumbnail {
             width: 100%;
             aspect-ratio: 1;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: #333;
             border-radius: 10px;
             margin-bottom: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .album-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .album-thumbnail .placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -264,6 +239,45 @@
             color: #667eea;
         }
 
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 20px;
+        }
+
+        .volume-icon {
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+
+        .volume-slider {
+            width: 100px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.3);
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: none;
+        }
+
         #youtube-player {
             position: fixed;
             top: -9999px;
@@ -284,15 +298,6 @@
             <p>YouTubeのプレイリストをアルバム風に楽しもう</p>
         </div>
 
-        <div class="csv-input-section">
-            <h2>Googleスプレッドシートを読み込む</h2>
-            <input type="text" id="csv-url" placeholder="CSVのURL（ファイル→共有→ウェブに公開→CSV形式）">
-            <button onclick="loadCSV()">読み込む</button>
-            <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.8;">
-                ※スプレッドシートは「配信枠名」「曲名」「アーティスト名」「URL」の列が必要です
-            </p>
-        </div>
-
         <div id="albums-container" class="albums-grid"></div>
         <div id="playlist-container"></div>
     </div>
@@ -308,6 +313,10 @@
                 <button class="control-btn play" id="play-btn" onclick="togglePlay()">▶</button>
                 <button class="control-btn" onclick="nextTrack()">⏭</button>
             </div>
+            <div class="volume-control">
+                <span class="volume-icon" onclick="toggleMute()">🔊</span>
+                <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100" oninput="changeVolume(this.value)">
+            </div>
         </div>
     </div>
 
@@ -321,6 +330,7 @@
         let currentTrackIndex = 0;
         let player = null;
         let isPlayerReady = false;
+        let isMuted = false;
 
         // YouTube IFrame API
         const tag = document.createElement('script');
@@ -345,6 +355,7 @@
 
         function onPlayerReady() {
             isPlayerReady = true;
+            console.log('YouTube Player Ready');
         }
 
         function onPlayerStateChange(event) {
@@ -409,7 +420,8 @@
                 if (!albums[finalAlbumName]) {
                     albums[finalAlbumName] = {
                         name: finalAlbumName,
-                        tracks: []
+                        tracks: [],
+                        thumbnail: null
                     };
                 }
 
@@ -418,6 +430,14 @@
                     artist: artist || 'Unknown Artist',
                     url: url
                 });
+
+                // 最初の曲のサムネイルをアルバムのサムネイルとして使用
+                if (albums[finalAlbumName].tracks.length === 1) {
+                    const videoId = extractVideoId(url);
+                    if (videoId) {
+                        albums[finalAlbumName].thumbnail = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                    }
+                }
             });
 
             console.log('読み込まれたアルバム数:', Object.keys(albums).length);
@@ -440,10 +460,15 @@
                 const album = albums[albumName];
                 const card = document.createElement('div');
                 card.className = 'album-card';
-                card.onclick = () => selectAlbum(albumName);
+                card.dataset.albumName = albumName;
+                card.onclick = function() { selectAlbum(albumName); };
+                
+                const thumbnailHtml = album.thumbnail 
+                    ? `<img src="${album.thumbnail}" alt="${album.name}">`
+                    : `<div class="placeholder">${index + 1}</div>`;
                 
                 card.innerHTML = `
-                    <div class="album-thumbnail">${(index + 1)}</div>
+                    <div class="album-thumbnail">${thumbnailHtml}</div>
                     <div class="album-info">
                         <h3>${album.name}</h3>
                         <p>${album.tracks.length} 曲</p>
@@ -461,7 +486,11 @@
             document.querySelectorAll('.album-card').forEach(card => {
                 card.classList.remove('active');
             });
-            event.currentTarget.classList.add('active');
+            
+            const selectedCard = document.querySelector(`.album-card[data-album-name="${albumName}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('active');
+            }
 
             displayPlaylist();
         }
@@ -484,7 +513,8 @@
             album.tracks.forEach((track, index) => {
                 const item = document.createElement('div');
                 item.className = 'track-item';
-                item.onclick = () => playTrack(index);
+                item.dataset.trackIndex = index;
+                item.onclick = function() { playTrack(index); };
                 
                 item.innerHTML = `
                     <div class="track-number">${index + 1}</div>
@@ -501,10 +531,15 @@
         }
 
         function playTrack(index) {
-            if (!currentAlbum || !isPlayerReady) return;
+            if (!currentAlbum || !isPlayerReady) {
+                console.log('Player not ready or no album selected');
+                return;
+            }
 
             currentTrackIndex = index;
             const track = albums[currentAlbum].tracks[index];
+            
+            console.log('Playing track:', track.title, 'URL:', track.url);
             
             const videoId = extractVideoId(track.url);
             const startTime = extractStartTime(track.url);
@@ -522,12 +557,23 @@
                 document.querySelectorAll('.track-item').forEach((item, i) => {
                     item.classList.toggle('playing', i === index);
                 });
+            } else {
+                console.error('Invalid video ID for URL:', track.url);
             }
         }
 
         function extractVideoId(url) {
-            const match = url.match(/[?&]v=([^&]+)/);
-            return match ? match[1] : null;
+            const patterns = [
+                /[?&]v=([^&]+)/,
+                /youtu\.be\/([^?&]+)/,
+                /embed\/([^?&]+)/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
         }
 
         function extractStartTime(url) {
@@ -536,7 +582,7 @@
         }
 
         function togglePlay() {
-            if (!player) return;
+            if (!player || !isPlayerReady) return;
             
             const state = player.getPlayerState();
             if (state === YT.PlayerState.PLAYING) {
@@ -560,6 +606,39 @@
             const album = albums[currentAlbum];
             if (currentTrackIndex < album.tracks.length - 1) {
                 playTrack(currentTrackIndex + 1);
+            }
+        }
+
+        function changeVolume(value) {
+            if (!player || !isPlayerReady) return;
+            player.setVolume(value);
+            updateVolumeIcon(value);
+        }
+
+        function toggleMute() {
+            if (!player || !isPlayerReady) return;
+            
+            if (isMuted) {
+                player.unMute();
+                const volume = document.getElementById('volume-slider').value;
+                player.setVolume(volume);
+                isMuted = false;
+                updateVolumeIcon(volume);
+            } else {
+                player.mute();
+                isMuted = true;
+                document.querySelector('.volume-icon').textContent = '🔇';
+            }
+        }
+
+        function updateVolumeIcon(volume) {
+            const icon = document.querySelector('.volume-icon');
+            if (volume == 0) {
+                icon.textContent = '🔇';
+            } else if (volume < 50) {
+                icon.textContent = '🔉';
+            } else {
+                icon.textContent = '🔊';
             }
         }
     </script>
