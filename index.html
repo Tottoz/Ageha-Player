@@ -577,7 +577,17 @@
             </div>
         </div>
 
-        <div id="albums-container" class="albums-grid"></div>
+        <div class="albums-section">
+            <div class="albums-header" onclick="toggleAlbums()">
+                <h2>
+                    <span class="toggle-icon collapsed" id="toggle-icon">▼</span>
+                    配信枠一覧
+                </h2>
+                <span id="album-count" style="opacity: 0.7;"></span>
+            </div>
+            <div class="albums-grid" id="albums-container"></div>
+        </div>
+
         <div id="playlist-container"></div>
     </div>
 
@@ -613,6 +623,8 @@
         let searchQuery = '';
         let isSearchMode = false;
         let sortOrder = 'desc'; // デフォルトは降順（新しい順）
+        let searchResults = []; // 検索結果を保存
+        let albumsExpanded = false; // アルバムリストの展開状態
 
         // テーマ切り替え
         function toggleTheme() {
@@ -621,6 +633,23 @@
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
             body.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
+        }
+
+        // アルバムリストの開閉
+        function toggleAlbums() {
+            albumsExpanded = !albumsExpanded;
+            const container = document.getElementById('albums-container');
+            const icon = document.getElementById('toggle-icon');
+            
+            if (albumsExpanded) {
+                container.classList.add('expanded');
+                icon.classList.remove('collapsed');
+            } else {
+                container.classList.remove('expanded');
+                icon.classList.add('collapsed');
+            }
+            
+            localStorage.setItem('albumsExpanded', albumsExpanded);
         }
 
         // 並び替え順序の設定
@@ -647,6 +676,15 @@
             sortOrder = localStorage.getItem('sortOrder') || 'desc';
             updateSortButtons();
             
+            // アルバムの展開状態を復元（デフォルトは閉じている）
+            albumsExpanded = localStorage.getItem('albumsExpanded') === 'true';
+            const container = document.getElementById('albums-container');
+            const icon = document.getElementById('toggle-icon');
+            if (albumsExpanded) {
+                container.classList.add('expanded');
+                icon.classList.remove('collapsed');
+            }
+            
             loadCSV();
         });
 
@@ -662,6 +700,7 @@
             if (searchQuery === '') {
                 // 検索クリア時はアルバム表示に戻る
                 isSearchMode = false;
+                searchResults = [];
                 displayAlbums();
                 document.getElementById('playlist-container').innerHTML = '';
                 currentAlbum = null;
@@ -671,14 +710,14 @@
             isSearchMode = true;
 
             // 全アルバムから検索
-            const results = [];
+            searchResults = [];
             Object.keys(albums).forEach(albumName => {
                 albums[albumName].tracks.forEach((track, index) => {
                     const title = track.title.toLowerCase();
                     const artist = track.artist.toLowerCase();
                     
                     if (title.includes(searchQuery) || artist.includes(searchQuery)) {
-                        results.push({
+                        searchResults.push({
                             albumName: albumName,
                             trackIndex: index,
                             track: track
@@ -688,7 +727,7 @@
             });
 
             // 検索結果を表示
-            displaySearchResults(results);
+            displaySearchResults(searchResults);
             
             // 検索結果にスクロール
             const playlistContainer = document.getElementById('playlist-container');
@@ -725,14 +764,9 @@
                 item.className = 'track-item';
                 item.dataset.albumName = result.albumName;
                 item.dataset.trackIndex = result.trackIndex;
+                item.dataset.searchIndex = displayIndex; // 検索結果内のインデックス
                 item.onclick = function() { 
-                    isSearchMode = true;
-                    currentAlbum = result.albumName;
-                    playTrack(result.trackIndex);
-                    
-                    // 検索結果内の選択状態を更新
-                    document.querySelectorAll('.track-item').forEach(t => t.classList.remove('playing'));
-                    item.classList.add('playing');
+                    playSearchResult(displayIndex);
                 };
                 
                 item.innerHTML = `
@@ -749,10 +783,27 @@
             container.scrollIntoView({ behavior: 'smooth' });
         }
 
+        function playSearchResult(searchIndex) {
+            if (searchIndex < 0 || searchIndex >= searchResults.length) return;
+            
+            const result = searchResults[searchIndex];
+            isSearchMode = true;
+            currentAlbum = result.albumName;
+            currentTrackIndex = result.trackIndex;
+            
+            playTrack(result.trackIndex);
+            
+            // 検索結果内の選択状態を更新
+            document.querySelectorAll('.track-item').forEach((t, idx) => {
+                t.classList.toggle('playing', idx === searchIndex);
+            });
+        }
+
         function clearSearch() {
             document.getElementById('search-input').value = '';
             searchQuery = '';
             isSearchMode = false;
+            searchResults = [];
             
             // アルバム表示に戻る
             displayAlbums();
@@ -947,6 +998,9 @@
                 dateStr: e.dateStr,
                 date: e.date ? e.date.toISOString().split('T')[0] : 'no date'
             })));
+
+            // アルバム数を表示
+            document.getElementById('album-count').textContent = `${albumEntries.length}件`;
 
             albumEntries.forEach((entry, index) => {
                 const albumName = entry.name;
@@ -1155,20 +1209,45 @@
         }
 
         function previousTrack() {
-            if (!currentAlbum) return;
-            
-            if (currentTrackIndex > 0) {
-                playTrack(currentTrackIndex - 1);
+            if (isSearchMode && searchResults.length > 0) {
+                // 検索モードの場合
+                const currentSearchIndex = getCurrentSearchIndex();
+                if (currentSearchIndex > 0) {
+                    playSearchResult(currentSearchIndex - 1);
+                }
+            } else if (currentAlbum) {
+                // アルバムモードの場合
+                if (currentTrackIndex > 0) {
+                    playTrack(currentTrackIndex - 1);
+                }
             }
         }
 
         function nextTrack() {
-            if (!currentAlbum) return;
-            
-            const album = albums[currentAlbum];
-            if (currentTrackIndex < album.tracks.length - 1) {
-                playTrack(currentTrackIndex + 1);
+            if (isSearchMode && searchResults.length > 0) {
+                // 検索モードの場合
+                const currentSearchIndex = getCurrentSearchIndex();
+                if (currentSearchIndex < searchResults.length - 1) {
+                    playSearchResult(currentSearchIndex + 1);
+                }
+            } else if (currentAlbum) {
+                // アルバムモードの場合
+                const album = albums[currentAlbum];
+                if (currentTrackIndex < album.tracks.length - 1) {
+                    playTrack(currentTrackIndex + 1);
+                }
             }
+        }
+
+        function getCurrentSearchIndex() {
+            // 現在再生中の曲が検索結果の何番目かを探す
+            for (let i = 0; i < searchResults.length; i++) {
+                if (searchResults[i].albumName === currentAlbum && 
+                    searchResults[i].trackIndex === currentTrackIndex) {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         function changeVolume(value) {
