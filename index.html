@@ -503,6 +503,7 @@
         let isPlayerReady = false;
         let isMuted = false;
         let searchQuery = '';
+        let isSearchMode = false;
 
         // テーマ切り替え
         function toggleTheme() {
@@ -513,10 +514,14 @@
             localStorage.setItem('theme', newTheme);
         }
 
-        // 保存されたテーマを読み込む
+        // 保存されたテーマとボリュームを読み込む
         window.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme') || 'light';
             document.body.setAttribute('data-theme', savedTheme);
+            
+            const savedVolume = localStorage.getItem('volume') || '100';
+            document.getElementById('volume-slider').value = savedVolume;
+            
             loadCSV();
         });
 
@@ -524,8 +529,8 @@
         function searchTracks() {
             searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
             
-            if (!currentAlbum) {
-                // アルバムが選択されていない場合は全アルバムから検索
+            if (!currentAlbum || isSearchMode) {
+                // アルバムが選択されていない場合、または検索モードの場合は全アルバムから検索
                 searchAllAlbums();
                 return;
             }
@@ -548,27 +553,33 @@
 
             // 検索結果がない場合
             const playlistSection = document.querySelector('.playlist-section');
-            let noResults = playlistSection.querySelector('.no-results');
-            
-            if (!hasResults && searchQuery !== '') {
-                if (!noResults) {
-                    noResults = document.createElement('div');
-                    noResults.className = 'no-results';
-                    noResults.textContent = '検索結果が見つかりませんでした';
-                    playlistSection.appendChild(noResults);
+            if (playlistSection) {
+                let noResults = playlistSection.querySelector('.no-results');
+                
+                if (!hasResults && searchQuery !== '') {
+                    if (!noResults) {
+                        noResults = document.createElement('div');
+                        noResults.className = 'no-results';
+                        noResults.textContent = '検索結果が見つかりませんでした';
+                        playlistSection.appendChild(noResults);
+                    }
+                } else if (noResults) {
+                    noResults.remove();
                 }
-            } else if (noResults) {
-                noResults.remove();
             }
         }
 
         function searchAllAlbums() {
             if (searchQuery === '') {
                 // 検索クリア時はアルバム表示に戻る
+                isSearchMode = false;
                 displayAlbums();
                 document.getElementById('playlist-container').innerHTML = '';
+                currentAlbum = null;
                 return;
             }
+
+            isSearchMode = true;
 
             // 全アルバムから検索
             const results = [];
@@ -614,16 +625,23 @@
             `;
 
             const trackList = document.getElementById('track-list');
-            results.forEach((result, index) => {
+            results.forEach((result, displayIndex) => {
                 const item = document.createElement('div');
                 item.className = 'track-item';
+                item.dataset.albumName = result.albumName;
+                item.dataset.trackIndex = result.trackIndex;
                 item.onclick = function() { 
+                    isSearchMode = true;
                     currentAlbum = result.albumName;
                     playTrack(result.trackIndex);
+                    
+                    // 検索結果内の選択状態を更新
+                    document.querySelectorAll('.track-item').forEach(t => t.classList.remove('playing'));
+                    item.classList.add('playing');
                 };
                 
                 item.innerHTML = `
-                    <div class="track-number">${index + 1}</div>
+                    <div class="track-number">${displayIndex + 1}</div>
                     <div class="track-info">
                         <div class="track-title">${result.track.title}</div>
                         <div class="track-artist">${result.track.artist} • ${result.albumName}</div>
@@ -639,8 +657,9 @@
         function clearSearch() {
             document.getElementById('search-input').value = '';
             searchQuery = '';
+            isSearchMode = false;
             
-            if (currentAlbum) {
+            if (currentAlbum && !isSearchMode) {
                 // プレイリスト表示中の場合
                 const tracks = document.querySelectorAll('.track-item');
                 tracks.forEach(track => track.classList.remove('hidden'));
@@ -651,6 +670,7 @@
                 // アルバム表示に戻る
                 displayAlbums();
                 document.getElementById('playlist-container').innerHTML = '';
+                currentAlbum = null;
             }
         }
 
@@ -679,6 +699,11 @@
         function onPlayerReady() {
             isPlayerReady = true;
             console.log('YouTube Player Ready');
+            
+            // 保存されたボリュームを適用
+            const savedVolume = localStorage.getItem('volume') || '100';
+            player.setVolume(parseInt(savedVolume));
+            updateVolumeIcon(savedVolume);
         }
 
         function onPlayerStateChange(event) {
@@ -824,13 +849,14 @@
             currentAlbum = albumName;
             currentTrackIndex = 0;
             searchQuery = '';
+            isSearchMode = false;
             document.getElementById('search-input').value = '';
             
             document.querySelectorAll('.album-card').forEach(card => {
                 card.classList.remove('active');
             });
             
-            const selectedCard = document.querySelector(`.album-card[data-album-name="${albumName}"]`);
+            const selectedCard = document.querySelector(`.album-card[data-album-name="${CSS.escape(albumName)}"]`);
             if (selectedCard) {
                 selectedCard.classList.add('active');
             }
@@ -892,6 +918,8 @@
             console.log('Title:', track.title);
             console.log('Artist:', track.artist);
             console.log('URL:', track.url);
+            console.log('Album:', currentAlbum);
+            console.log('Track Index:', index);
             
             const videoId = extractVideoId(track.url);
             const startTime = extractStartTime(track.url);
@@ -910,8 +938,16 @@
                     document.getElementById('current-artist').textContent = track.artist;
                     document.getElementById('player').style.display = 'block';
 
-                    document.querySelectorAll('.track-item').forEach((item, i) => {
-                        item.classList.toggle('playing', i === index);
+                    // 再生中の曲をハイライト
+                    document.querySelectorAll('.track-item').forEach((item) => {
+                        const itemAlbum = item.dataset.albumName || currentAlbum;
+                        const itemIndex = parseInt(item.dataset.trackIndex);
+                        
+                        if (itemAlbum === currentAlbum && itemIndex === index) {
+                            item.classList.add('playing');
+                        } else {
+                            item.classList.remove('playing');
+                        }
                     });
                     
                     console.log('Video load command sent successfully');
@@ -976,6 +1012,7 @@
             if (!player || !isPlayerReady) return;
             player.setVolume(value);
             updateVolumeIcon(value);
+            localStorage.setItem('volume', value);
         }
 
         function toggleMute() {
