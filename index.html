@@ -348,7 +348,8 @@
                 },
                 events: {
                     'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
                 }
             });
         }
@@ -358,7 +359,29 @@
             console.log('YouTube Player Ready');
         }
 
+        function onPlayerError(event) {
+            const errors = {
+                2: '無効なパラメータ',
+                5: 'HTML5プレーヤーエラー',
+                100: '動画が見つかりません',
+                101: '埋め込みが許可されていません',
+                150: '埋め込みが許可されていません'
+            };
+            console.error('YouTube Player Error:', errors[event.data] || event.data);
+            alert('この動画は再生できません: ' + (errors[event.data] || '不明なエラー'));
+        }
+
         function onPlayerStateChange(event) {
+            const states = {
+                '-1': 'UNSTARTED',
+                '0': 'ENDED',
+                '1': 'PLAYING',
+                '2': 'PAUSED',
+                '3': 'BUFFERING',
+                '5': 'CUED'
+            };
+            console.log('Player state changed:', states[event.data] || event.data);
+            
             if (event.data == YT.PlayerState.PLAYING) {
                 document.getElementById('play-btn').textContent = '⏸';
             } else {
@@ -367,6 +390,11 @@
             
             if (event.data == YT.PlayerState.ENDED) {
                 nextTrack();
+            }
+            
+            // エラー状態の検出
+            if (event.data == -1) {
+                console.warn('Video is unstarted - checking for errors');
             }
         }
 
@@ -531,34 +559,54 @@
         }
 
         function playTrack(index) {
-            if (!currentAlbum || !isPlayerReady) {
-                console.log('Player not ready or no album selected');
+            if (!currentAlbum) {
+                console.error('No album selected');
+                return;
+            }
+            
+            if (!isPlayerReady) {
+                console.error('Player not ready yet');
+                alert('プレーヤーの準備中です。少しお待ちください。');
                 return;
             }
 
             currentTrackIndex = index;
             const track = albums[currentAlbum].tracks[index];
             
-            console.log('Playing track:', track.title, 'URL:', track.url);
+            console.log('=== Playing Track ===');
+            console.log('Title:', track.title);
+            console.log('Artist:', track.artist);
+            console.log('URL:', track.url);
             
             const videoId = extractVideoId(track.url);
             const startTime = extractStartTime(track.url);
 
+            console.log('Extracted Video ID:', videoId);
+            console.log('Start Time:', startTime);
+
             if (videoId) {
-                player.loadVideoById({
-                    videoId: videoId,
-                    startSeconds: startTime
-                });
+                try {
+                    player.loadVideoById({
+                        videoId: videoId,
+                        startSeconds: startTime
+                    });
 
-                document.getElementById('current-title').textContent = track.title;
-                document.getElementById('current-artist').textContent = track.artist;
-                document.getElementById('player').style.display = 'block';
+                    document.getElementById('current-title').textContent = track.title;
+                    document.getElementById('current-artist').textContent = track.artist;
+                    document.getElementById('player').style.display = 'block';
 
-                document.querySelectorAll('.track-item').forEach((item, i) => {
-                    item.classList.toggle('playing', i === index);
-                });
+                    document.querySelectorAll('.track-item').forEach((item, i) => {
+                        item.classList.toggle('playing', i === index);
+                    });
+                    
+                    console.log('Video load command sent successfully');
+                } catch (error) {
+                    console.error('Error loading video:', error);
+                    alert('動画の読み込みに失敗しました: ' + error.message);
+                }
             } else {
                 console.error('Invalid video ID for URL:', track.url);
+                alert('無効なYouTube URLです: ' + track.url);
             }
         }
 
