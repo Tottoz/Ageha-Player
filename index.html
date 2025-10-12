@@ -269,6 +269,14 @@
             background: #333;
             border-radius: 10px;
             margin-bottom: 15px;
+            overflow: visible;
+            position: relative;
+        }
+
+        .album-thumbnail-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
             overflow: hidden;
             position: relative;
         }
@@ -291,24 +299,7 @@
             color: #fff;
         }
 
-        .album-info h3 {
-            font-size: 1em;
-            margin-bottom: 5px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            line-height: 1.3;
-            position: relative;
-        }
-
-        .album-info p {
-            font-size: 0.9em;
-            color: var(--text-secondary);
-        }
-
-        .album-name-tooltip {
+        .album-thumbnail-tooltip {
             position: absolute;
             bottom: 100%;
             left: 50%;
@@ -329,7 +320,7 @@
             line-height: 1.4;
         }
 
-        .album-name-tooltip::after {
+        .album-thumbnail-tooltip::after {
             content: '';
             position: absolute;
             top: 100%;
@@ -339,8 +330,24 @@
             border-top-color: rgba(0, 0, 0, 0.9);
         }
 
-        .album-info h3:hover .album-name-tooltip {
+        .album-thumbnail:hover .album-thumbnail-tooltip {
             opacity: 1;
+        }
+
+        .album-info h3 {
+            font-size: 1em;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
+        }
+
+        .album-info p {
+            font-size: 0.9em;
+            color: var(--text-secondary);
         }
 
         .playlist-section {
@@ -860,6 +867,7 @@
                 const trackName = row['曲名'];
                 const artist = row['アーティスト'];
                 const url = row['URL'];
+                const date = row['年月日'];
 
                 if (!trackName || !url) {
                     console.log('スキップされた行 (曲名またはURLが空):', row);
@@ -872,7 +880,8 @@
                     albums[finalAlbumName] = {
                         name: finalAlbumName,
                         tracks: [],
-                        thumbnail: null
+                        thumbnail: null,
+                        date: date || null  // 日付を保存
                     };
                 }
 
@@ -909,7 +918,8 @@
             // アルバム名を配列に変換してソート
             const albumEntries = Object.keys(albums).map(name => ({
                 name: name,
-                date: extractDate(name),
+                dateStr: albums[name].date,
+                date: parseDate(albums[name].date),
                 album: albums[name]
             }));
 
@@ -934,6 +944,7 @@
 
             console.log('Sorted albums:', albumEntries.map(e => ({
                 name: e.name,
+                dateStr: e.dateStr,
                 date: e.date ? e.date.toISOString().split('T')[0] : 'no date'
             })));
 
@@ -950,12 +961,12 @@
                     : `<div class="placeholder">${index + 1}</div>`;
                 
                 card.innerHTML = `
-                    <div class="album-thumbnail">${thumbnailHtml}</div>
+                    <div class="album-thumbnail">
+                        <div class="album-thumbnail-inner">${thumbnailHtml}</div>
+                        <div class="album-thumbnail-tooltip">${album.name}</div>
+                    </div>
                     <div class="album-info">
-                        <h3>
-                            ${album.name}
-                            <span class="album-name-tooltip">${album.name}</span>
-                        </h3>
+                        <h3>${album.name}</h3>
                         <p>${album.tracks.length} 曲</p>
                     </div>
                 `;
@@ -964,15 +975,17 @@
             });
         }
 
-        function extractDate(text) {
-            // YYYY/MM/DD または YYYY-MM-DD 形式の日付を抽出
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            // 様々な日付形式に対応
             const patterns = [
                 /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,  // YYYY/MM/DD or YYYY-MM-DD
                 /(\d{4})年(\d{1,2})月(\d{1,2})日/      // YYYY年MM月DD日
             ];
             
             for (let pattern of patterns) {
-                const match = text.match(pattern);
+                const match = dateStr.match(pattern);
                 if (match) {
                     const year = parseInt(match[1]);
                     const month = parseInt(match[2]);
@@ -981,7 +994,18 @@
                 }
             }
             
+            // ISO形式も試す
+            const isoDate = new Date(dateStr);
+            if (!isNaN(isoDate.getTime())) {
+                return isoDate;
+            }
+            
             return null;
+        }
+
+        function extractDate(text) {
+            // この関数は枠名から日付を抽出するために残しておく（後方互換性）
+            return parseDate(text);
         }
 
         function selectAlbum(albumName) {
