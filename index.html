@@ -921,4 +921,89 @@
                 }
             } else {
                 console.error('Invalid video ID for URL:', track.url);
-                alert('無効なYouTube URLです: ' + track.url
+                alert('無効なYouTube URLです: ' + track.url);
+            }
+        }
+
+        function extractVideoId(url) {
+            const patterns = [
+                /[?&]v=([^&]+)/,
+                /youtu\.be\/([^?&]+)/,
+                /embed\/([^?&]+)/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        function extractStartTime(url) {
+            const match = url.match(/[?&]t=(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function togglePlay() {
+            if (!player || !isPlayerReady) return;
+            
+            const state = player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+        }
+
+        function previousTrack() {
+            if (!currentAlbum) return;
+            
+            if (currentTrackIndex > 0) {
+                playTrack(currentTrackIndex - 1);
+            }
+        }
+
+        function nextTrack() {
+            if (!currentAlbum) return;
+            
+            const album = albums[currentAlbum];
+            if (currentTrackIndex < album.tracks.length - 1) {
+                playTrack(currentTrackIndex + 1);
+            }
+        }
+
+        function changeVolume(value) {
+            if (!player || !isPlayerReady) return;
+            player.setVolume(value);
+            updateVolumeIcon(value);
+        }
+
+        function toggleMute() {
+            if (!player || !isPlayerReady) return;
+            
+            if (isMuted) {
+                player.unMute();
+                const volume = document.getElementById('volume-slider').value;
+                player.setVolume(volume);
+                isMuted = false;
+                updateVolumeIcon(volume);
+            } else {
+                player.mute();
+                isMuted = true;
+                document.querySelector('.volume-icon').textContent = '🔇';
+            }
+        }
+
+        function updateVolumeIcon(volume) {
+            const icon = document.querySelector('.volume-icon');
+            if (volume == 0) {
+                icon.textContent = '🔇';
+            } else if (volume < 50) {
+                icon.textContent = '🔉';
+            } else {
+                icon.textContent = '🔊';
+            }
+        }
+    </script>
+</body>
+</html>
