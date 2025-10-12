@@ -6,6 +6,38 @@
     <title>VTuber Music Player</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
+        :root {
+            --bg-gradient-start: #f5f5f5;
+            --bg-gradient-end: #e0e0e0;
+            --card-bg: rgba(79, 75, 78, 0.1);
+            --card-hover: rgba(79, 75, 78, 0.2);
+            --card-active: rgba(180, 11, 14, 0.3);
+            --text-color: #333;
+            --text-secondary: #666;
+            --primary-color: #4F4B4E;
+            --accent-color: #B40B0E;
+            --player-bg: rgba(79, 75, 78, 0.95);
+            --input-bg: #fff;
+            --input-border: #ddd;
+            --border-color: rgba(79, 75, 78, 0.3);
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --card-bg: rgba(255, 255, 255, 0.15);
+            --card-hover: rgba(255, 255, 255, 0.25);
+            --card-active: rgba(255, 255, 255, 0.3);
+            --text-color: #fff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --primary-color: #fff;
+            --accent-color: #ffd700;
+            --player-bg: rgba(0, 0, 0, 0.9);
+            --input-bg: rgba(255, 255, 255, 0.2);
+            --input-border: rgba(255, 255, 255, 0.3);
+            --border-color: rgba(255, 255, 255, 0.5);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,9 +46,10 @@
 
         body {
             font-family: 'Roboto', 'Noto Sans JP', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            color: var(--text-color);
             min-height: 100vh;
+            transition: all 0.3s ease;
         }
 
         .container {
@@ -27,14 +60,123 @@
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             padding: 30px 20px;
+            position: relative;
         }
 
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid var(--border-color);
+        }
+
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s;
+        }
+
+        [data-theme="dark"] .toggle-switch::before {
+            transform: translateX(30px);
+        }
+
+        .toggle-label {
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .search-section {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid var(--border-color);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid var(--input-border);
+            border-radius: 10px;
+            font-size: 1em;
+            background: var(--input-bg);
+            color: var(--text-color);
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+
+        .clear-btn {
+            padding: 15px 20px;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .clear-btn:hover {
+            opacity: 0.8;
         }
 
         .albums-grid {
@@ -45,7 +187,7 @@
         }
 
         .album-card {
-            background: rgba(255,255,255,0.15);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 20px;
@@ -56,13 +198,13 @@
 
         .album-card:hover {
             transform: translateY(-5px);
-            background: rgba(255,255,255,0.25);
-            border-color: rgba(255,255,255,0.5);
+            background: var(--card-hover);
+            border-color: var(--border-color);
         }
 
         .album-card.active {
-            border-color: #fff;
-            background: rgba(255,255,255,0.3);
+            border-color: var(--accent-color);
+            background: var(--card-active);
         }
 
         .album-thumbnail {
@@ -84,12 +226,13 @@
         .album-thumbnail .placeholder {
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 3em;
             font-weight: bold;
+            color: #fff;
         }
 
         .album-info h3 {
@@ -102,15 +245,16 @@
 
         .album-info p {
             font-size: 0.9em;
-            opacity: 0.8;
+            color: var(--text-secondary);
         }
 
         .playlist-section {
-            background: rgba(255,255,255,0.1);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 120px;
+            border: 2px solid var(--border-color);
         }
 
         .playlist-header {
@@ -132,19 +276,24 @@
             display: flex;
             align-items: center;
             padding: 15px;
-            background: rgba(255,255,255,0.1);
+            background: var(--card-bg);
             border-radius: 10px;
             cursor: pointer;
             transition: all 0.2s;
+            border: 2px solid transparent;
         }
 
         .track-item:hover {
-            background: rgba(255,255,255,0.2);
+            background: var(--card-hover);
         }
 
         .track-item.playing {
-            background: rgba(255,255,255,0.3);
-            border: 2px solid #fff;
+            background: var(--card-active);
+            border-color: var(--accent-color);
+        }
+
+        .track-item.hidden {
+            display: none;
         }
 
         .track-number {
@@ -166,7 +315,7 @@
 
         .track-artist {
             font-size: 0.9em;
-            opacity: 0.8;
+            color: var(--text-secondary);
         }
 
         .player {
@@ -174,7 +323,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0,0,0,0.9);
+            background: var(--player-bg);
             backdrop-filter: blur(20px);
             padding: 20px;
             z-index: 1000;
@@ -199,11 +348,13 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            color: #fff;
         }
 
         .now-playing-artist {
             font-size: 0.9em;
             opacity: 0.7;
+            color: #fff;
         }
 
         .player-controls {
@@ -236,7 +387,7 @@
             width: 55px;
             height: 55px;
             background: #fff;
-            color: #667eea;
+            color: var(--accent-color);
         }
 
         .volume-control {
@@ -289,13 +440,33 @@
             padding: 40px;
             font-size: 1.2em;
         }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: var(--text-secondary);
+        }
     </style>
 </head>
-<body>
+<body data-theme="light">
     <div class="container">
         <div class="header">
+            <div class="theme-toggle">
+                <span class="toggle-label">☀️</span>
+                <div class="toggle-switch" onclick="toggleTheme()"></div>
+                <span class="toggle-label">🌙</span>
+            </div>
             <h1>🎵 VTuber Music Player</h1>
             <p>YouTubeのプレイリストをアルバム風に楽しもう</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" id="search-input" placeholder="曲名またはアーティスト名で検索..." oninput="searchTracks()">
+                <button class="search-btn" onclick="searchTracks()">🔍 検索</button>
+                <button class="clear-btn" onclick="clearSearch()">クリア</button>
+            </div>
         </div>
 
         <div id="albums-container" class="albums-grid"></div>
@@ -331,6 +502,157 @@
         let player = null;
         let isPlayerReady = false;
         let isMuted = false;
+        let searchQuery = '';
+
+        // テーマ切り替え
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // 保存されたテーマを読み込む
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            loadCSV();
+        });
+
+        // 検索機能
+        function searchTracks() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
+            
+            if (!currentAlbum) {
+                // アルバムが選択されていない場合は全アルバムから検索
+                searchAllAlbums();
+                return;
+            }
+
+            // 現在のプレイリスト内を検索
+            const tracks = document.querySelectorAll('.track-item');
+            let hasResults = false;
+
+            tracks.forEach(track => {
+                const title = track.querySelector('.track-title').textContent.toLowerCase();
+                const artist = track.querySelector('.track-artist').textContent.toLowerCase();
+                
+                if (searchQuery === '' || title.includes(searchQuery) || artist.includes(searchQuery)) {
+                    track.classList.remove('hidden');
+                    hasResults = true;
+                } else {
+                    track.classList.add('hidden');
+                }
+            });
+
+            // 検索結果がない場合
+            const playlistSection = document.querySelector('.playlist-section');
+            let noResults = playlistSection.querySelector('.no-results');
+            
+            if (!hasResults && searchQuery !== '') {
+                if (!noResults) {
+                    noResults = document.createElement('div');
+                    noResults.className = 'no-results';
+                    noResults.textContent = '検索結果が見つかりませんでした';
+                    playlistSection.appendChild(noResults);
+                }
+            } else if (noResults) {
+                noResults.remove();
+            }
+        }
+
+        function searchAllAlbums() {
+            if (searchQuery === '') {
+                // 検索クリア時はアルバム表示に戻る
+                displayAlbums();
+                document.getElementById('playlist-container').innerHTML = '';
+                return;
+            }
+
+            // 全アルバムから検索
+            const results = [];
+            Object.keys(albums).forEach(albumName => {
+                albums[albumName].tracks.forEach((track, index) => {
+                    const title = track.title.toLowerCase();
+                    const artist = track.artist.toLowerCase();
+                    
+                    if (title.includes(searchQuery) || artist.includes(searchQuery)) {
+                        results.push({
+                            albumName: albumName,
+                            trackIndex: index,
+                            track: track
+                        });
+                    }
+                });
+            });
+
+            // 検索結果を表示
+            displaySearchResults(results);
+        }
+
+        function displaySearchResults(results) {
+            const container = document.getElementById('playlist-container');
+            
+            if (results.length === 0) {
+                container.innerHTML = `
+                    <div class="playlist-section">
+                        <div class="no-results">検索結果が見つかりませんでした</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="playlist-section">
+                    <div class="playlist-header">
+                        <h2>検索結果</h2>
+                        <p>${results.length} 曲</p>
+                    </div>
+                    <div class="track-list" id="track-list"></div>
+                </div>
+            `;
+
+            const trackList = document.getElementById('track-list');
+            results.forEach((result, index) => {
+                const item = document.createElement('div');
+                item.className = 'track-item';
+                item.onclick = function() { 
+                    currentAlbum = result.albumName;
+                    playTrack(result.trackIndex);
+                };
+                
+                item.innerHTML = `
+                    <div class="track-number">${index + 1}</div>
+                    <div class="track-info">
+                        <div class="track-title">${result.track.title}</div>
+                        <div class="track-artist">${result.track.artist} • ${result.albumName}</div>
+                    </div>
+                `;
+                
+                trackList.appendChild(item);
+            });
+
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            searchQuery = '';
+            
+            if (currentAlbum) {
+                // プレイリスト表示中の場合
+                const tracks = document.querySelectorAll('.track-item');
+                tracks.forEach(track => track.classList.remove('hidden'));
+                
+                const noResults = document.querySelector('.no-results');
+                if (noResults) noResults.remove();
+            } else {
+                // アルバム表示に戻る
+                displayAlbums();
+                document.getElementById('playlist-container').innerHTML = '';
+            }
+        }
 
         // YouTube IFrame API
         const tag = document.createElement('script');
@@ -359,18 +681,6 @@
             console.log('YouTube Player Ready');
         }
 
-        function onPlayerError(event) {
-            const errors = {
-                2: '無効なパラメータ',
-                5: 'HTML5プレーヤーエラー',
-                100: '動画が見つかりません',
-                101: '埋め込みが許可されていません',
-                150: '埋め込みが許可されていません'
-            };
-            console.error('YouTube Player Error:', errors[event.data] || event.data);
-            alert('この動画は再生できません: ' + (errors[event.data] || '不明なエラー'));
-        }
-
         function onPlayerStateChange(event) {
             const states = {
                 '-1': 'UNSTARTED',
@@ -392,16 +702,22 @@
                 nextTrack();
             }
             
-            // エラー状態の検出
             if (event.data == -1) {
                 console.warn('Video is unstarted - checking for errors');
             }
         }
 
-        // ページ読み込み時に自動でCSVを読み込む
-        window.addEventListener('DOMContentLoaded', () => {
-            loadCSV();
-        });
+        function onPlayerError(event) {
+            const errors = {
+                2: '無効なパラメータ',
+                5: 'HTML5プレーヤーエラー',
+                100: '動画が見つかりません',
+                101: '埋め込みが許可されていません',
+                150: '埋め込みが許可されていません'
+            };
+            console.error('YouTube Player Error:', errors[event.data] || event.data);
+            alert('この動画は再生できません: ' + (errors[event.data] || '不明なエラー'));
+        }
 
         function loadCSV() {
             const url = CSV_URL;
@@ -425,7 +741,6 @@
         function processData(data) {
             albums = {};
             
-            // デバッグ: 最初の行の列名を確認
             if (data.length > 0) {
                 console.log('CSV列名:', Object.keys(data[0]));
                 console.log('最初の行:', data[0]);
@@ -442,7 +757,6 @@
                     return;
                 }
 
-                // 配信枠名がない場合は「すべての曲」として扱う
                 const finalAlbumName = albumName || 'すべての曲';
 
                 if (!albums[finalAlbumName]) {
@@ -459,7 +773,6 @@
                     url: url
                 });
 
-                // 最初の曲のサムネイルをアルバムのサムネイルとして使用
                 if (albums[finalAlbumName].tracks.length === 1) {
                     const videoId = extractVideoId(url);
                     if (videoId) {
@@ -510,6 +823,8 @@
         function selectAlbum(albumName) {
             currentAlbum = albumName;
             currentTrackIndex = 0;
+            searchQuery = '';
+            document.getElementById('search-input').value = '';
             
             document.querySelectorAll('.album-card').forEach(card => {
                 card.classList.remove('active');
@@ -606,89 +921,4 @@
                 }
             } else {
                 console.error('Invalid video ID for URL:', track.url);
-                alert('無効なYouTube URLです: ' + track.url);
-            }
-        }
-
-        function extractVideoId(url) {
-            const patterns = [
-                /[?&]v=([^&]+)/,
-                /youtu\.be\/([^?&]+)/,
-                /embed\/([^?&]+)/
-            ];
-            
-            for (let pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-            }
-            return null;
-        }
-
-        function extractStartTime(url) {
-            const match = url.match(/[?&]t=(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-        }
-
-        function togglePlay() {
-            if (!player || !isPlayerReady) return;
-            
-            const state = player.getPlayerState();
-            if (state === YT.PlayerState.PLAYING) {
-                player.pauseVideo();
-            } else {
-                player.playVideo();
-            }
-        }
-
-        function previousTrack() {
-            if (!currentAlbum) return;
-            
-            if (currentTrackIndex > 0) {
-                playTrack(currentTrackIndex - 1);
-            }
-        }
-
-        function nextTrack() {
-            if (!currentAlbum) return;
-            
-            const album = albums[currentAlbum];
-            if (currentTrackIndex < album.tracks.length - 1) {
-                playTrack(currentTrackIndex + 1);
-            }
-        }
-
-        function changeVolume(value) {
-            if (!player || !isPlayerReady) return;
-            player.setVolume(value);
-            updateVolumeIcon(value);
-        }
-
-        function toggleMute() {
-            if (!player || !isPlayerReady) return;
-            
-            if (isMuted) {
-                player.unMute();
-                const volume = document.getElementById('volume-slider').value;
-                player.setVolume(volume);
-                isMuted = false;
-                updateVolumeIcon(volume);
-            } else {
-                player.mute();
-                isMuted = true;
-                document.querySelector('.volume-icon').textContent = '🔇';
-            }
-        }
-
-        function updateVolumeIcon(volume) {
-            const icon = document.querySelector('.volume-icon');
-            if (volume == 0) {
-                icon.textContent = '🔇';
-            } else if (volume < 50) {
-                icon.textContent = '🔉';
-            } else {
-                icon.textContent = '🔊';
-            }
-        }
-    </script>
-</body>
-</html>
+                alert('無効なYouTube URLです: ' + track.url
