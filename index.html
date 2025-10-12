@@ -314,7 +314,7 @@
     <div id="youtube-player"></div>
 
     <script>
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=0&single=true&output=csv';
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=560825458&single=true&output=csv';
         
         let albums = {};
         let currentAlbum = null;
@@ -386,27 +386,48 @@
         function processData(data) {
             albums = {};
             
+            // デバッグ: 最初の行の列名を確認
+            if (data.length > 0) {
+                console.log('CSV列名:', Object.keys(data[0]));
+                console.log('最初の行:', data[0]);
+            }
+            
             data.forEach(row => {
-                const albumName = row['配信枠名'] || row['アルバム名'] || row['配信名'];
-                const trackName = row['曲名'] || row['タイトル'];
-                const artist = row['アーティスト名'] || row['アーティスト'];
-                const url = row['URL'] || row['url'];
+                const albumName = row['配信枠名'] || row['アルバム名'];
+                const trackName = row['曲名'];
+                const artist = row['アーティスト'];
+                const url = row['URL'];
 
-                if (!albumName || !trackName || !url) return;
+                if (!trackName || !url) {
+                    console.log('スキップされた行 (曲名またはURLが空):', row);
+                    return;
+                }
 
-                if (!albums[albumName]) {
-                    albums[albumName] = {
-                        name: albumName,
+                // 配信枠名がない場合は「すべての曲」として扱う
+                const finalAlbumName = albumName || 'すべての曲';
+
+                if (!albums[finalAlbumName]) {
+                    albums[finalAlbumName] = {
+                        name: finalAlbumName,
                         tracks: []
                     };
                 }
 
-                albums[albumName].tracks.push({
+                albums[finalAlbumName].tracks.push({
                     title: trackName,
                     artist: artist || 'Unknown Artist',
                     url: url
                 });
             });
+
+            console.log('読み込まれたアルバム数:', Object.keys(albums).length);
+            console.log('各アルバムの曲数:', Object.keys(albums).map(name => `${name}: ${albums[name].tracks.length}曲`));
+            
+            if (Object.keys(albums).length === 0) {
+                document.getElementById('albums-container').innerHTML = 
+                    '<div class="loading">データが見つかりませんでした。<br>CSVに「曲名」と「URL」の列があることを確認してください。</div>';
+                return;
+            }
 
             displayAlbums();
         }
