@@ -637,9 +637,14 @@
 
         // アルバムリストの開閉
         function toggleAlbums() {
+            console.log('toggleAlbums called, current state:', albumsExpanded);
             albumsExpanded = !albumsExpanded;
             const container = document.getElementById('albums-container');
             const icon = document.getElementById('toggle-icon');
+            
+            console.log('New state:', albumsExpanded);
+            console.log('Container:', container);
+            console.log('Icon:', icon);
             
             if (albumsExpanded) {
                 container.classList.add('expanded');
