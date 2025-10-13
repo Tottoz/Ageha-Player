@@ -580,7 +580,7 @@
         <div class="albums-section">
             <div class="albums-header" onclick="toggleAlbums()">
                 <h2>
-                    <span class="toggle-icon collapsed" id="toggle-icon">▼</span>
+                    <span class="toggle-icon" id="toggle-icon">▶</span>
                     配信枠一覧
                 </h2>
                 <span id="album-count" style="opacity: 0.7;"></span>
@@ -643,10 +643,10 @@
             
             if (albumsExpanded) {
                 container.classList.add('expanded');
-                icon.classList.remove('collapsed');
+                icon.textContent = '▼';
             } else {
                 container.classList.remove('expanded');
-                icon.classList.add('collapsed');
+                icon.textContent = '▶';
             }
             
             localStorage.setItem('albumsExpanded', albumsExpanded);
@@ -682,7 +682,10 @@
             const icon = document.getElementById('toggle-icon');
             if (albumsExpanded) {
                 container.classList.add('expanded');
-                icon.classList.remove('collapsed');
+                icon.textContent = '▼';
+            } else {
+                container.classList.remove('expanded');
+                icon.textContent = '▶';
             }
             
             loadCSV();
