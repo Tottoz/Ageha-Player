@@ -663,16 +663,16 @@
         }
 
         #youtube-player {
+            width: 100%;
+            height: 100%;
+        }
+
+        .youtube-player-hidden {
             position: fixed;
             top: -9999px;
             left: -9999px;
             width: 1px;
             height: 1px;
-        }
-
-        #youtube-player-modal {
-            width: 100%;
-            height: 100%;
         }
 
         .loading {
@@ -753,13 +753,13 @@
     <div class="video-modal" id="video-modal" onclick="closeVideoModal(event)">
         <div class="video-modal-content" onclick="event.stopPropagation()">
             <button class="video-modal-close" onclick="closeVideoModal()">×</button>
-            <div class="video-wrapper">
-                <iframe id="youtube-player-modal" frameborder="0" allowfullscreen></iframe>
+            <div class="video-wrapper" id="video-wrapper">
+                <!-- YouTubeプレーヤーがここに移動される -->
             </div>
         </div>
     </div>
 
-    <div id="youtube-player"></div>
+    <div id="youtube-player" class="youtube-player-hidden"></div>
 
     <script>
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=560825458&single=true&output=csv';
@@ -781,10 +781,12 @@
             if (!currentVideoId) return;
             
             const modal = document.getElementById('video-modal');
-            const iframe = document.getElementById('youtube-player-modal');
+            const videoWrapper = document.getElementById('video-wrapper');
+            const playerElement = document.getElementById('youtube-player');
             
-            const currentTime = player.getCurrentTime();
-            iframe.src = `https://www.youtube.com/embed/${currentVideoId}?start=${Math.floor(currentTime)}&autoplay=1`;
+            // プレーヤーをモーダル内に移動
+            playerElement.classList.remove('youtube-player-hidden');
+            videoWrapper.appendChild(playerElement);
             
             modal.classList.add('open');
         }
@@ -795,10 +797,13 @@
             }
             
             const modal = document.getElementById('video-modal');
-            const iframe = document.getElementById('youtube-player-modal');
+            const playerElement = document.getElementById('youtube-player');
+            
+            // プレーヤーを画面外に戻す
+            playerElement.classList.add('youtube-player-hidden');
+            document.body.appendChild(playerElement);
             
             modal.classList.remove('open');
-            iframe.src = '';
         }
 
         function toggleTheme() {
@@ -985,11 +990,13 @@
 
         function onYouTubeIframeAPIReady() {
             player = new YT.Player('youtube-player', {
-                height: '1',
-                width: '1',
+                height: '360',
+                width: '640',
                 playerVars: {
                     'autoplay': 0,
-                    'controls': 0,
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1
                 },
                 events: {
                     'onReady': onPlayerReady,
