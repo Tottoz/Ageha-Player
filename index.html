@@ -582,8 +582,8 @@
                 <h2>
                     <span class="toggle-icon" id="toggle-icon">▶</span>
                     配信枠一覧
+                    <span id="album-count" style="opacity: 0.7;"></span>
                 </h2>
-                <span id="album-count" style="opacity: 0.7;"></span>
             </div>
             <div class="albums-grid" id="albums-container"></div>
         </div>
@@ -599,7 +599,7 @@
             </div>
             <div class="player-controls">
                 <button class="control-btn" onclick="previousTrack()">⏮</button>
-                <button class="control-btn play" id="play-btn" onclick="togglePlay()">▶</button>
+                <button class="control-btn play" id="play-btn" onclick="togglePlay()">▶️</button>
                 <button class="control-btn" onclick="nextTrack()">⏭</button>
             </div>
             <div class="volume-control">
@@ -865,7 +865,7 @@
             if (event.data == YT.PlayerState.PLAYING) {
                 document.getElementById('play-btn').textContent = '⏸';
             } else {
-                document.getElementById('play-btn').textContent = '▶';
+                document.getElementById('play-btn').textContent = '▶️';
             }
             
             if (event.data == YT.PlayerState.ENDED) {
@@ -1003,7 +1003,7 @@
             })));
 
             // アルバム数を表示
-            document.getElementById('album-count').textContent = `${albumEntries.length}件`;
+            document.getElementById('album-count').textContent = `（${albumEntries.length}件）`;
 
             albumEntries.forEach((entry, index) => {
                 const albumName = entry.name;
