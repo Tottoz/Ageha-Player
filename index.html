@@ -562,7 +562,7 @@
             overflow: hidden;
         }
 
-        .video-wrapper iframe {
+        .video-wrapper > div {
             position: absolute;
             top: 0;
             left: 0;
@@ -669,10 +669,11 @@
 
         .youtube-player-hidden {
             position: fixed;
-            top: -9999px;
-            left: -9999px;
+            bottom: -500px;
+            left: 0;
             width: 640px;
             height: 360px;
+            pointer-events: none;
         }
 
         .loading {
@@ -754,7 +755,7 @@
         <div class="video-modal-content" onclick="event.stopPropagation()">
             <button class="video-modal-close" onclick="closeVideoModal()">×</button>
             <div class="video-wrapper" id="video-wrapper">
-                <!-- YouTubeプレーヤーがここに移動される -->
+                <div id="youtube-player-modal"></div>
             </div>
         </div>
     </div>
@@ -776,19 +777,35 @@
         let searchResults = [];
         let albumsExpanded = true;
         let currentVideoId = null;
+        let modalPlayer = null;
+        let isModalPlayerReady = false;
+        let isModalOpen = false;
 
         function openVideoModal() {
-            if (!currentVideoId) return;
+            if (!currentVideoId || !isModalPlayerReady) return;
             
+            isModalOpen = true;
+            
+            // バックグラウンドプレーヤーの現在位置を取得
+            const currentTime = player.getCurrentTime();
+            
+            // バックグラウンドプレーヤーを一時停止
+            player.pauseVideo();
+            
+            // モーダルプレーヤーに同じ動画を同じ位置から再生
+            modalPlayer.loadVideoById({
+                videoId: currentVideoId,
+                startSeconds: currentTime
+            });
+            
+            // モーダルを表示
             const modal = document.getElementById('video-modal');
-            const videoWrapper = document.getElementById('video-wrapper');
-            const playerElement = document.getElementById('youtube-player');
-            
-            // プレーヤーをモーダル内に移動
-            playerElement.classList.remove('youtube-player-hidden');
-            videoWrapper.appendChild(playerElement);
-            
             modal.classList.add('open');
+            
+            // 少し遅延してから再生開始
+            setTimeout(() => {
+                modalPlayer.playVideo();
+            }, 500);
         }
 
         function closeVideoModal(event) {
@@ -796,14 +813,28 @@
                 return;
             }
             
+            if (!isModalOpen) return;
+            
+            isModalOpen = false;
+            
+            // モーダルプレーヤーの現在位置を取得
+            const currentTime = modalPlayer.getCurrentTime();
+            const playerState = modalPlayer.getPlayerState();
+            
+            // モーダルを閉じる
             const modal = document.getElementById('video-modal');
-            const playerElement = document.getElementById('youtube-player');
-            
-            // プレーヤーを画面外に戻す
-            playerElement.classList.add('youtube-player-hidden');
-            document.body.appendChild(playerElement);
-            
             modal.classList.remove('open');
+            
+            // バックグラウンドプレーヤーに位置を同期
+            player.seekTo(currentTime, true);
+            
+            // モーダルで再生中だった場合は、バックグラウンドでも再生
+            if (playerState === YT.PlayerState.PLAYING) {
+                player.playVideo();
+            }
+            
+            // モーダルプレーヤーを停止
+            modalPlayer.stopVideo();
         }
 
         function toggleTheme() {
@@ -989,14 +1020,13 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
+            // バックグラウンド再生用プレーヤー
             player = new YT.Player('youtube-player', {
-                height: '360',
-                width: '640',
+                height: '1',
+                width: '1',
                 playerVars: {
                     'autoplay': 0,
-                    'controls': 1,
-                    'rel': 0,
-                    'modestbranding': 1
+                    'controls': 0,
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -1004,6 +1034,38 @@
                     'onError': onPlayerError
                 }
             });
+
+            // モーダル用プレーヤー
+            modalPlayer = new YT.Player('youtube-player-modal', {
+                height: '100%',
+                width: '100%',
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1,
+                    'rel': 0,
+                    'modestbranding': 1
+                },
+                events: {
+                    'onReady': onModalPlayerReady,
+                    'onStateChange': onModalPlayerStateChange
+                }
+            });
+        }
+
+        function onModalPlayerReady() {
+            isModalPlayerReady = true;
+            console.log('Modal Player Ready');
+        }
+
+        function onModalPlayerStateChange(event) {
+            if (!isModalOpen) return;
+
+            // モーダルプレーヤーの状態をバックグラウンドプレーヤーに同期
+            if (event.data == YT.PlayerState.PLAYING) {
+                player.pauseVideo();
+            } else if (event.data == YT.PlayerState.PAUSED) {
+                // モーダルが開いている間はバックグラウンドを止めたまま
+            }
         }
 
         function onPlayerReady() {
