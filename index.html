@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -513,20 +514,14 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.9);
-            display: flex;
+            display: none;
             align-items: center;
             justify-content: center;
             z-index: 2000;
-            visibility: hidden;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s, visibility 0.3s;
         }
 
         .video-modal.open {
-            visibility: visible;
-            opacity: 1;
-            pointer-events: auto;
+            display: flex;
         }
 
         .video-modal-content {
@@ -536,12 +531,6 @@
             background: #000;
             border-radius: 10px;
             overflow: visible;
-            transform: scale(0.9);
-            transition: transform 0.3s;
-        }
-
-        .video-modal.open .video-modal-content {
-            transform: scale(1);
         }
 
         .video-modal-close {
