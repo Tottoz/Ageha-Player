@@ -513,14 +513,20 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.9);
-            display: none;
+            display: flex;
             align-items: center;
             justify-content: center;
             z-index: 2000;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, visibility 0.3s;
         }
 
         .video-modal.open {
-            display: flex;
+            visibility: visible;
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .video-modal-content {
@@ -530,6 +536,12 @@
             background: #000;
             border-radius: 10px;
             overflow: hidden;
+            transform: scale(0.9);
+            transition: transform 0.3s;
+        }
+
+        .video-modal.open .video-modal-content {
+            transform: scale(1);
         }
 
         .video-modal-close {
@@ -560,14 +572,19 @@
             padding-bottom: 56.25%;
             height: 0;
             overflow: hidden;
+            background: #000;
         }
 
         .video-wrapper > div {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .video-modal:not(.open) .video-wrapper {
+            display: none;
         }
 
         .now-playing {
@@ -760,7 +777,7 @@
         </div>
     </div>
 
-    <div id="youtube-player" class="youtube-player-hidden"></div>
+    <div id="youtube-player"></div>
 
     <script>
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=560825458&single=true&output=csv';
