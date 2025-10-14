@@ -535,7 +535,7 @@
             max-width: 1000px;
             background: #000;
             border-radius: 10px;
-            overflow: hidden;
+            overflow: visible;
             transform: scale(0.9);
             transition: transform 0.3s;
         }
@@ -546,7 +546,7 @@
 
         .video-modal-close {
             position: absolute;
-            top: -40px;
+            top: -50px;
             right: 0;
             background: rgba(255,255,255,0.2);
             border: none;
@@ -560,6 +560,7 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            z-index: 10;
         }
 
         .video-modal-close:hover {
@@ -583,8 +584,12 @@
             height: 100% !important;
         }
 
-        .video-modal:not(.open) .video-wrapper {
-            display: none;
+        .video-wrapper iframe {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .now-playing {
