@@ -799,30 +799,46 @@
         let isModalOpen = false;
 
         function openVideoModal() {
-            if (!currentVideoId || !isModalPlayerReady) return;
+            if (!currentVideoId) {
+                console.error('No video ID available');
+                return;
+            }
+            
+            if (!isModalPlayerReady) {
+                console.error('Modal player not ready yet');
+                alert('モーダルプレーヤーの準備中です。少しお待ちください。');
+                return;
+            }
+            
+            console.log('Opening modal with video ID:', currentVideoId);
             
             isModalOpen = true;
-            
-            // バックグラウンドプレーヤーの現在位置を取得
-            const currentTime = player.getCurrentTime();
-            
-            // バックグラウンドプレーヤーを一時停止
-            player.pauseVideo();
-            
-            // モーダルプレーヤーに同じ動画を同じ位置から再生
-            modalPlayer.loadVideoById({
-                videoId: currentVideoId,
-                startSeconds: currentTime
-            });
             
             // モーダルを表示
             const modal = document.getElementById('video-modal');
             modal.classList.add('open');
             
-            // 少し遅延してから再生開始
+            // バックグラウンドプレーヤーの現在位置を取得
+            const currentTime = Math.floor(player.getCurrentTime());
+            console.log('Current time:', currentTime);
+            
+            // バックグラウンドプレーヤーを一時停止
+            player.pauseVideo();
+            
+            // モーダルプレーヤーに動画を読み込み
             setTimeout(() => {
-                modalPlayer.playVideo();
-            }, 500);
+                console.log('Loading video in modal player');
+                modalPlayer.loadVideoById({
+                    videoId: currentVideoId,
+                    startSeconds: currentTime
+                });
+                
+                // さらに遅延してから再生
+                setTimeout(() => {
+                    console.log('Starting playback');
+                    modalPlayer.playVideo();
+                }, 1000);
+            }, 300);
         }
 
         function closeVideoModal(event) {
@@ -1060,11 +1076,16 @@
                     'autoplay': 0,
                     'controls': 1,
                     'rel': 0,
-                    'modestbranding': 1
+                    'modestbranding': 1,
+                    'fs': 1,
+                    'enablejsapi': 1
                 },
                 events: {
                     'onReady': onModalPlayerReady,
-                    'onStateChange': onModalPlayerStateChange
+                    'onStateChange': onModalPlayerStateChange,
+                    'onError': function(event) {
+                        console.error('Modal player error:', event.data);
+                    }
                 }
             });
         }
@@ -1072,16 +1093,32 @@
         function onModalPlayerReady() {
             isModalPlayerReady = true;
             console.log('Modal Player Ready');
+            
+            // 音量を設定
+            const savedVolume = localStorage.getItem('volume') || '100';
+            modalPlayer.setVolume(parseInt(savedVolume));
         }
 
         function onModalPlayerStateChange(event) {
+            const states = {
+                '-1': 'UNSTARTED',
+                '0': 'ENDED',
+                '1': 'PLAYING',
+                '2': 'PAUSED',
+                '3': 'BUFFERING',
+                '5': 'CUED'
+            };
+            console.log('Modal player state changed:', states[event.data] || event.data);
+            
             if (!isModalOpen) return;
 
             // モーダルプレーヤーの状態をバックグラウンドプレーヤーに同期
             if (event.data == YT.PlayerState.PLAYING) {
                 player.pauseVideo();
-            } else if (event.data == YT.PlayerState.PAUSED) {
-                // モーダルが開いている間はバックグラウンドを止めたまま
+            } else if (event.data == YT.PlayerState.ENDED) {
+                // 動画が終わったら次の曲へ
+                closeVideoModal();
+                nextTrack();
             }
         }
 
