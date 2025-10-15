@@ -484,102 +484,6 @@
             gap: 20px;
         }
 
-        .player-thumbnail {
-            width: 120px;
-            height: 90px;
-            border-radius: 8px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.3s;
-            flex-shrink: 0;
-            border: 2px solid rgba(255,255,255,0.3);
-        }
-
-        .player-thumbnail:hover {
-            transform: scale(1.05);
-            border-color: rgba(255,255,255,0.6);
-        }
-
-        .player-thumbnail img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .video-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .video-modal.open {
-            display: flex;
-        }
-
-        .video-modal-content {
-            position: relative;
-            width: 90%;
-            max-width: 1000px;
-            background: #000;
-            border-radius: 10px;
-            overflow: visible;
-        }
-
-        .video-modal-close {
-            position: absolute;
-            top: -50px;
-            right: 0;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            color: #fff;
-            font-size: 1.5em;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            z-index: 10;
-        }
-
-        .video-modal-close:hover {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.1);
-        }
-
-        .video-wrapper {
-            position: relative;
-            padding-bottom: 56.25%;
-            height: 0;
-            overflow: hidden;
-            background: #000;
-        }
-
-        .video-wrapper > div {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        .video-wrapper iframe {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
         .now-playing {
             flex: 1;
             min-width: 0;
@@ -673,17 +577,9 @@
         }
 
         #youtube-player {
-            width: 100%;
-            height: 100%;
-        }
-
-        .youtube-player-hidden {
             position: fixed;
-            bottom: -500px;
-            left: 0;
-            width: 640px;
-            height: 360px;
-            pointer-events: none;
+            top: -9999px;
+            left: -9999px;
         }
 
         .loading {
@@ -742,9 +638,6 @@
 
     <div class="player" id="player" style="display: none;">
         <div class="player-content">
-            <div class="player-thumbnail" id="player-thumbnail" onclick="openVideoModal()">
-                <img id="player-thumbnail-img" src="" alt="Video thumbnail">
-            </div>
             <div class="now-playing">
                 <div class="now-playing-title" id="current-title">-</div>
                 <div class="now-playing-artist" id="current-artist">-</div>
@@ -757,15 +650,6 @@
             <div class="volume-control">
                 <span class="volume-icon" onclick="toggleMute()">🔊</span>
                 <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100" oninput="changeVolume(this.value)">
-            </div>
-        </div>
-    </div>
-
-    <div class="video-modal" id="video-modal" onclick="closeVideoModal(event)">
-        <div class="video-modal-content" onclick="event.stopPropagation()">
-            <button class="video-modal-close" onclick="closeVideoModal()">×</button>
-            <div class="video-wrapper" id="video-wrapper">
-                <div id="youtube-player-modal"></div>
             </div>
         </div>
     </div>
@@ -786,82 +670,6 @@
         let sortOrder = 'desc';
         let searchResults = [];
         let albumsExpanded = true;
-        let currentVideoId = null;
-        let modalPlayer = null;
-        let isModalPlayerReady = false;
-        let isModalOpen = false;
-
-        function openVideoModal() {
-            if (!currentVideoId) {
-                console.error('No video ID available');
-                return;
-            }
-            
-            if (!isModalPlayerReady) {
-                console.error('Modal player not ready yet');
-                alert('モーダルプレーヤーの準備中です。少しお待ちください。');
-                return;
-            }
-            
-            console.log('Opening modal with video ID:', currentVideoId);
-            
-            isModalOpen = true;
-            
-            // モーダルを表示
-            const modal = document.getElementById('video-modal');
-            modal.classList.add('open');
-            
-            // バックグラウンドプレーヤーの現在位置を取得
-            const currentTime = Math.floor(player.getCurrentTime());
-            console.log('Current time:', currentTime);
-            
-            // バックグラウンドプレーヤーを一時停止
-            player.pauseVideo();
-            
-            // モーダルプレーヤーに動画を読み込み
-            setTimeout(() => {
-                console.log('Loading video in modal player');
-                modalPlayer.loadVideoById({
-                    videoId: currentVideoId,
-                    startSeconds: currentTime
-                });
-                
-                // さらに遅延してから再生
-                setTimeout(() => {
-                    console.log('Starting playback');
-                    modalPlayer.playVideo();
-                }, 1000);
-            }, 300);
-        }
-
-        function closeVideoModal(event) {
-            if (event && event.target !== event.currentTarget && event.type === 'click') {
-                return;
-            }
-            
-            if (!isModalOpen) return;
-            
-            isModalOpen = false;
-            
-            // モーダルプレーヤーの現在位置を取得
-            const currentTime = modalPlayer.getCurrentTime();
-            const playerState = modalPlayer.getPlayerState();
-            
-            // モーダルを閉じる
-            const modal = document.getElementById('video-modal');
-            modal.classList.remove('open');
-            
-            // バックグラウンドプレーヤーに位置を同期
-            player.seekTo(currentTime, true);
-            
-            // モーダルで再生中だった場合は、バックグラウンドでも再生
-            if (playerState === YT.PlayerState.PLAYING) {
-                player.playVideo();
-            }
-            
-            // モーダルプレーヤーを停止
-            modalPlayer.stopVideo();
-        }
 
         function toggleTheme() {
             const body = document.body;
@@ -1046,7 +854,6 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
-            // バックグラウンド再生用プレーヤー
             player = new YT.Player('youtube-player', {
                 height: '1',
                 width: '1',
@@ -1060,59 +867,6 @@
                     'onError': onPlayerError
                 }
             });
-
-            // モーダル用プレーヤー
-            modalPlayer = new YT.Player('youtube-player-modal', {
-                height: '100%',
-                width: '100%',
-                playerVars: {
-                    'autoplay': 0,
-                    'controls': 1,
-                    'rel': 0,
-                    'modestbranding': 1,
-                    'fs': 1,
-                    'enablejsapi': 1
-                },
-                events: {
-                    'onReady': onModalPlayerReady,
-                    'onStateChange': onModalPlayerStateChange,
-                    'onError': function(event) {
-                        console.error('Modal player error:', event.data);
-                    }
-                }
-            });
-        }
-
-        function onModalPlayerReady() {
-            isModalPlayerReady = true;
-            console.log('Modal Player Ready');
-            
-            // 音量を設定
-            const savedVolume = localStorage.getItem('volume') || '100';
-            modalPlayer.setVolume(parseInt(savedVolume));
-        }
-
-        function onModalPlayerStateChange(event) {
-            const states = {
-                '-1': 'UNSTARTED',
-                '0': 'ENDED',
-                '1': 'PLAYING',
-                '2': 'PAUSED',
-                '3': 'BUFFERING',
-                '5': 'CUED'
-            };
-            console.log('Modal player state changed:', states[event.data] || event.data);
-            
-            if (!isModalOpen) return;
-
-            // モーダルプレーヤーの状態をバックグラウンドプレーヤーに同期
-            if (event.data == YT.PlayerState.PLAYING) {
-                player.pauseVideo();
-            } else if (event.data == YT.PlayerState.ENDED) {
-                // 動画が終わったら次の曲へ
-                closeVideoModal();
-                nextTrack();
-            }
         }
 
         function onPlayerReady() {
@@ -1413,8 +1167,6 @@
 
             if (videoId) {
                 try {
-                    currentVideoId = videoId;
-                    
                     player.loadVideoById({
                         videoId: videoId,
                         startSeconds: startTime
@@ -1423,10 +1175,6 @@
                     document.getElementById('current-title').textContent = track.title;
                     document.getElementById('current-artist').textContent = track.artist;
                     document.getElementById('player').style.display = 'block';
-                    
-                    // サムネイルを更新
-                    const thumbnailImg = document.getElementById('player-thumbnail-img');
-                    thumbnailImg.src = `https://img.youtube.com/vi/${videoId}/default.jpg`;
 
                     document.querySelectorAll('.track-item').forEach((item) => {
                         const itemAlbum = item.dataset.albumName || currentAlbum;
