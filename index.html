@@ -610,7 +610,7 @@
         <div class="search-section">
             <div class="search-controls">
                 <div class="search-box">
-                    <input type="text" class="search-input" id="search-input" placeholder="曲名またはアーティスト名で検索..." oninput="searchTracks()">
+                    <input type="text" class="search-input" id="search-input" placeholder="曲名またはアーティスト名で検索..." onkeydown="handleSearchKeydown(event)">
                     <button class="search-btn" onclick="searchTracks()">🔍 検索</button>
                     <button class="clear-btn" onclick="clearSearch()">クリア</button>
                 </div>
