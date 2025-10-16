@@ -671,6 +671,12 @@
         let searchResults = [];
         let albumsExpanded = true;
 
+        function handleSearchKeydown(event) {
+            if (event.key === 'Enter') {
+                searchTracks();
+            }
+        }
+
         function toggleTheme() {
             const body = document.body;
             const currentTheme = body.getAttribute('data-theme');
