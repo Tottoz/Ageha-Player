@@ -650,6 +650,11 @@
             border: none;
         }
 
+        .float-player > div:not(.float-player-controls) {
+            width: 100%;
+            height: 100%;
+        }
+
         .video-modal {
             position: fixed;
             top: 0;
@@ -780,21 +785,19 @@
         </div>
     </div>
 
-    <div id="youtube-player"></div>
-
     <div class="float-player" id="float-player">
         <div class="float-player-controls">
             <button class="float-player-btn" onclick="expandToModal()" title="拡大">⛶</button>
             <button class="float-player-btn" onclick="closeFloatPlayer()" title="閉じる">✕</button>
         </div>
-        <iframe id="float-player-iframe" allowfullscreen></iframe>
+        <div id="float-player-iframe"></div>
     </div>
 
     <div class="video-modal" id="video-modal" onclick="closeModal(event)">
         <div class="video-modal-content" onclick="event.stopPropagation()">
             <button class="video-modal-close" onclick="closeModal()">×</button>
             <div class="video-modal-player">
-                <iframe id="modal-player-iframe" allowfullscreen></iframe>
+                <div id="modal-player-iframe"></div>
             </div>
         </div>
     </div>
@@ -817,6 +820,11 @@
         let currentStartTime = 0;
         let floatPlayerDragging = false;
         let floatPlayerOffset = { x: 0, y: 0 };
+        let floatPlayer = null;
+        let modalPlayer = null;
+        let isFloatPlayerReady = false;
+        let isModalPlayerReady = false;
+        let activePlayer = null; // 'float' or 'modal'
 
         function handleSearchKeydown(event) {
             if (event.key === 'Enter') {
@@ -920,33 +928,64 @@
         function showFloatPlayer(videoId, startTime) {
             currentVideoId = videoId;
             currentStartTime = startTime;
-            const floatPlayer = document.getElementById('float-player');
-            const iframe = document.getElementById('float-player-iframe');
-            iframe.src = `https://www.youtube.com/embed/${videoId}?start=${startTime}&autoplay=1&controls=1`;
-            floatPlayer.classList.add('show');
+            activePlayer = 'float';
+            
+            if (!isFloatPlayerReady) {
+                alert('プレイヤーの準備中です。少しお待ちください。');
+                return;
+            }
+            
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.classList.add('show');
+            
+            floatPlayer.loadVideoById({
+                videoId: videoId,
+                startSeconds: startTime
+            });
+            
+            setTimeout(() => {
+                floatPlayer.playVideo();
+            }, 500);
         }
 
         function closeFloatPlayer() {
-            const floatPlayer = document.getElementById('float-player');
-            const iframe = document.getElementById('float-player-iframe');
-            floatPlayer.classList.remove('show');
-            iframe.src = '';
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.classList.remove('show');
+            floatPlayer.stopVideo();
+            activePlayer = null;
         }
 
         function expandToModal() {
+            if (!isModalPlayerReady) {
+                alert('モーダルプレイヤーの準備中です。');
+                return;
+            }
+            
+            const currentTime = floatPlayer.getCurrentTime();
+            activePlayer = 'modal';
+            
             const modal = document.getElementById('video-modal');
-            const modalIframe = document.getElementById('modal-player-iframe');
-            modalIframe.src = `https://www.youtube.com/embed/${currentVideoId}?start=${currentStartTime}&autoplay=1&controls=1`;
             modal.classList.add('show');
+            
+            modalPlayer.loadVideoById({
+                videoId: currentVideoId,
+                startSeconds: Math.floor(currentTime)
+            });
+            
             closeFloatPlayer();
+            
+            setTimeout(() => {
+                modalPlayer.playVideo();
+            }, 500);
         }
 
         function closeModal(event) {
             if (event && event.target !== event.currentTarget) return;
+            
             const modal = document.getElementById('video-modal');
-            const modalIframe = document.getElementById('modal-player-iframe');
             modal.classList.remove('show');
-            modalIframe.src = '';
+            modalPlayer.stopVideo();
+            activePlayer = null;
         }
 
         function searchTracks() {
@@ -1072,31 +1111,45 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtube-player', {
-                height: '1',
-                width: '1',
+            // フロートプレイヤー
+            floatPlayer = new YT.Player('float-player-iframe', {
                 playerVars: {
                     'autoplay': 0,
-                    'controls': 0,
+                    'controls': 1,
+                    'modestbranding': 1,
+                    'rel': 0
                 },
                 events: {
-                    'onReady': onPlayerReady,
-                    'onStateChange': onPlayerStateChange,
-                    'onError': onPlayerError
+                    'onReady': onFloatPlayerReady,
+                    'onStateChange': onFloatPlayerStateChange
+                }
+            });
+
+            // モーダルプレイヤー
+            modalPlayer = new YT.Player('modal-player-iframe', {
+                playerVars: {
+                    'autoplay': 0,
+                    'controls': 1,
+                    'modestbranding': 1,
+                    'rel': 0
+                },
+                events: {
+                    'onReady': onModalPlayerReady,
+                    'onStateChange': onModalPlayerStateChange
                 }
             });
         }
 
-        function onPlayerReady() {
-            isPlayerReady = true;
-            console.log('YouTube Player Ready');
-            
+        function onFloatPlayerReady() {
+            isFloatPlayerReady = true;
+            console.log('Float Player Ready');
             const savedVolume = localStorage.getItem('volume') || '100';
-            player.setVolume(parseInt(savedVolume));
-            updateVolumeIcon(savedVolume);
+            floatPlayer.setVolume(parseInt(savedVolume));
         }
 
-        function onPlayerStateChange(event) {
+        function onFloatPlayerStateChange(event) {
+            if (activePlayer !== 'float') return;
+            
             const states = {
                 '-1': 'UNSTARTED',
                 '0': 'ENDED',
@@ -1105,7 +1158,7 @@
                 '3': 'BUFFERING',
                 '5': 'CUED'
             };
-            console.log('Player state changed:', states[event.data] || event.data);
+            console.log('Float player state:', states[event.data]);
             
             if (event.data == YT.PlayerState.PLAYING) {
                 document.getElementById('play-btn').textContent = '⏸';
@@ -1116,22 +1169,26 @@
             if (event.data == YT.PlayerState.ENDED) {
                 nextTrack();
             }
-            
-            if (event.data == -1) {
-                console.warn('Video is unstarted - checking for errors');
-            }
         }
 
-        function onPlayerError(event) {
-            const errors = {
-                2: '無効なパラメータ',
-                5: 'HTML5プレーヤーエラー',
-                100: '動画が見つかりません',
-                101: '埋め込みが許可されていません',
-                150: '埋め込みが許可されていません'
-            };
-            console.error('YouTube Player Error:', errors[event.data] || event.data);
-            alert('この動画は再生できません: ' + (errors[event.data] || '不明なエラー'));
+        function onModalPlayerReady() {
+            isModalPlayerReady = true;
+            console.log('Modal Player Ready');
+        }
+
+        function onModalPlayerStateChange(event) {
+            if (activePlayer !== 'modal') return;
+            
+            if (event.data == YT.PlayerState.PLAYING) {
+                document.getElementById('play-btn').textContent = '⏸';
+            } else {
+                document.getElementById('play-btn').textContent = '▶️';
+            }
+            
+            if (event.data == YT.PlayerState.ENDED) {
+                closeModal();
+                nextTrack();
+            }
         }
 
         function loadCSV() {
@@ -1360,12 +1417,6 @@
                 console.error('No album selected');
                 return;
             }
-            
-            if (!isPlayerReady) {
-                console.error('Player not ready yet');
-                alert('プレーヤーの準備中です。少しお待ちください。');
-                return;
-            }
 
             currentTrackIndex = index;
             const track = albums[currentAlbum].tracks[index];
@@ -1385,11 +1436,6 @@
 
             if (videoId) {
                 try {
-                    player.loadVideoById({
-                        videoId: videoId,
-                        startSeconds: startTime
-                    });
-
                     document.getElementById('current-title').textContent = track.title;
                     document.getElementById('current-artist').textContent = track.artist;
                     document.getElementById('player').style.display = 'block';
@@ -1439,13 +1485,14 @@
         }
 
         function togglePlay() {
-            if (!player || !isPlayerReady) return;
+            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
+            if (!currentPlayer) return;
             
-            const state = player.getPlayerState();
+            const state = currentPlayer.getPlayerState();
             if (state === YT.PlayerState.PLAYING) {
-                player.pauseVideo();
+                currentPlayer.pauseVideo();
             } else {
-                player.playVideo();
+                currentPlayer.playVideo();
             }
         }
 
@@ -1487,23 +1534,25 @@
         }
 
         function changeVolume(value) {
-            if (!player || !isPlayerReady) return;
-            player.setVolume(value);
+            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
+            if (!currentPlayer) return;
+            currentPlayer.setVolume(value);
             updateVolumeIcon(value);
             localStorage.setItem('volume', value);
         }
 
         function toggleMute() {
-            if (!player || !isPlayerReady) return;
+            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
+            if (!currentPlayer) return;
             
             if (isMuted) {
-                player.unMute();
+                currentPlayer.unMute();
                 const volume = document.getElementById('volume-slider').value;
-                player.setVolume(volume);
+                currentPlayer.setVolume(volume);
                 isMuted = false;
                 updateVolumeIcon(volume);
             } else {
-                player.mute();
+                currentPlayer.mute();
                 isMuted = true;
                 document.querySelector('.volume-icon').textContent = '🔇';
             }
