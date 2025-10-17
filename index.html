@@ -547,6 +547,7 @@
         .volume-icon {
             font-size: 1.2em;
             cursor: pointer;
+            color: #fff;
         }
 
         .volume-slider {
@@ -574,12 +575,6 @@
             background: #fff;
             cursor: pointer;
             border: none;
-        }
-
-        #youtube-player {
-            position: fixed;
-            top: -9999px;
-            left: -9999px;
         }
 
         .float-player {
@@ -725,6 +720,23 @@
             font-size: 1.2em;
             color: var(--text-secondary);
         }
+
+        @media (max-width: 768px) {
+            .search-controls {
+                flex-direction: column;
+            }
+            
+            .sort-controls {
+                justify-content: center;
+            }
+            
+            .float-player {
+                width: 280px;
+                height: 157px;
+                bottom: 110px;
+                right: 10px;
+            }
+        }
     </style>
 </head>
 <body data-theme="light">
@@ -808,8 +820,10 @@
         let albums = {};
         let currentAlbum = null;
         let currentTrackIndex = 0;
-        let player = null;
-        let isPlayerReady = false;
+        let floatPlayer = null;
+        let modalPlayer = null;
+        let isFloatPlayerReady = false;
+        let isModalPlayerReady = false;
         let isMuted = false;
         let searchQuery = '';
         let isSearchMode = false;
@@ -820,11 +834,8 @@
         let currentStartTime = 0;
         let floatPlayerDragging = false;
         let floatPlayerOffset = { x: 0, y: 0 };
-        let floatPlayer = null;
-        let modalPlayer = null;
-        let isFloatPlayerReady = false;
-        let isModalPlayerReady = false;
-        let activePlayer = null; // 'float' or 'modal'
+        let activePlayer = null;
+        let pendingPlayback = null;
 
         function handleSearchKeydown(event) {
             if (event.key === 'Enter') {
@@ -878,7 +889,8 @@
             sortOrder = localStorage.getItem('sortOrder') || 'desc';
             updateSortButtons();
             
-            albumsExpanded = localStorage.getItem('albumsExpanded') === 'true';
+            const savedAlbumsExpanded = localStorage.getItem('albumsExpanded');
+            albumsExpanded = savedAlbumsExpanded !== null ? savedAlbumsExpanded === 'true' : true;
             const container = document.getElementById('albums-container');
             const icon = document.getElementById('toggle-icon');
             if (albumsExpanded) {
@@ -891,9 +903,8 @@
             
             loadCSV();
             
-            // フロートプレイヤーのドラッグ機能
-            const floatPlayer = document.getElementById('float-player');
-            floatPlayer.addEventListener('mousedown', startDrag);
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.addEventListener('mousedown', startDrag);
             document.addEventListener('mousemove', drag);
             document.addEventListener('mouseup', stopDrag);
         });
@@ -901,28 +912,34 @@
         function startDrag(e) {
             if (e.target.classList.contains('float-player-btn')) return;
             floatPlayerDragging = true;
-            const floatPlayer = document.getElementById('float-player');
-            const rect = floatPlayer.getBoundingClientRect();
+            const floatPlayerEl = document.getElementById('float-player');
+            const rect = floatPlayerEl.getBoundingClientRect();
             floatPlayerOffset.x = e.clientX - rect.left;
             floatPlayerOffset.y = e.clientY - rect.top;
-            floatPlayer.style.cursor = 'grabbing';
+            floatPlayerEl.style.cursor = 'grabbing';
         }
 
         function drag(e) {
             if (!floatPlayerDragging) return;
-            const floatPlayer = document.getElementById('float-player');
-            floatPlayer.style.left = (e.clientX - floatPlayerOffset.x) + 'px';
-            floatPlayer.style.top = (e.clientY - floatPlayerOffset.y) + 'px';
-            floatPlayer.style.right = 'auto';
-            floatPlayer.style.bottom = 'auto';
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.style.left = (e.clientX - floatPlayerOffset.x) + 'px';
+            floatPlayerEl.style.top = (e.clientY - floatPlayerOffset.y) + 'px';
+            floatPlayerEl.style.right = 'auto';
+            floatPlayerEl.style.bottom = 'auto';
         }
 
         function stopDrag() {
             if (floatPlayerDragging) {
-                const floatPlayer = document.getElementById('float-player');
-                floatPlayer.style.cursor = 'move';
+                const floatPlayerEl = document.getElementById('float-player');
+                floatPlayerEl.style.cursor = 'move';
                 floatPlayerDragging = false;
             }
+        }
+
+        function getActivePlayer() {
+            if (activePlayer === 'modal' && isModalPlayerReady) return modalPlayer;
+            if (activePlayer === 'float' && isFloatPlayerReady) return floatPlayer;
+            return null;
         }
 
         function showFloatPlayer(videoId, startTime) {
@@ -931,106 +948,92 @@
             activePlayer = 'float';
             
             if (!isFloatPlayerReady) {
-                alert('プレイヤーの準備中です。少しお待ちください。');
+                console.log('Float player not ready, queuing playback');
+                pendingPlayback = { videoId, startTime, player: 'float' };
                 return;
             }
             
-            const floatPlayerEl = document.getElementById('float-player');
-            floatPlayerEl.classList.add('show');
-            
-            floatPlayer.loadVideoById({
-                videoId: videoId,
-                startSeconds: startTime
-            });
-            
-            setTimeout(() => {
-                floatPlayer.playVideo();
-            }, 500);
+            try {
+                const floatPlayerEl = document.getElementById('float-player');
+                floatPlayerEl.classList.add('show');
+                
+                floatPlayer.loadVideoById({
+                    videoId: videoId,
+                    startSeconds: startTime
+                });
+                
+                setTimeout(() => {
+                    if (activePlayer === 'float') {
+                        floatPlayer.playVideo();
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('Error showing float player:', error);
+                alert('プレイヤーの表示中にエラーが発生しました');
+            }
         }
 
         function closeFloatPlayer() {
-            const floatPlayerEl = document.getElementById('float-player');
-            floatPlayerEl.classList.remove('show');
-            floatPlayer.stopVideo();
-            activePlayer = null;
+            try {
+                const floatPlayerEl = document.getElementById('float-player');
+                floatPlayerEl.classList.remove('show');
+                if (floatPlayer && isFloatPlayerReady) {
+                    floatPlayer.stopVideo();
+                }
+                if (activePlayer === 'float') {
+                    activePlayer = null;
+                }
+            } catch (error) {
+                console.error('Error closing float player:', error);
+            }
         }
 
         function expandToModal() {
             if (!isModalPlayerReady) {
-                alert('モーダルプレイヤーの準備中です。');
+                alert('モーダルプレイヤーの準備中です。少しお待ちください。');
                 return;
             }
             
-            const currentTime = floatPlayer.getCurrentTime();
-            const wasMuted = floatPlayer.isMuted();
-            const currentVolume = floatPlayer.getVolume();
-            
-            activePlayer = 'modal';
-            
-            const modal = document.getElementById('video-modal');
-            modal.classList.add('show');
-            
-            modalPlayer.loadVideoById({
-                videoId: currentVideoId,
-                startSeconds: Math.floor(currentTime)
-            });
-            
-            // 音量とミュート状態を引き継ぎ
-            if (wasMuted) {
-                modalPlayer.mute();
-            } else {
-                modalPlayer.unMute();
-                modalPlayer.setVolume(currentVolume);
+            try {
+                const currentTime = floatPlayer.getCurrentTime();
+                activePlayer = 'modal';
+                
+                const modal = document.getElementById('video-modal');
+                modal.classList.add('show');
+                
+                modalPlayer.loadVideoById({
+                    videoId: currentVideoId,
+                    startSeconds: Math.floor(currentTime)
+                });
+                
+                closeFloatPlayer();
+                
+                setTimeout(() => {
+                    if (activePlayer === 'modal') {
+                        modalPlayer.playVideo();
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('Error expanding to modal:', error);
+                alert('モーダル表示中にエラーが発生しました');
             }
-            
-            const floatPlayerEl = document.getElementById('float-player');
-            floatPlayerEl.classList.remove('show');
-            
-            setTimeout(() => {
-                modalPlayer.playVideo();
-            }, 500);
-        }
-
-        function closeModalToFloat() {
-            if (!isFloatPlayerReady) return;
-            
-            const currentTime = modalPlayer.getCurrentTime();
-            const wasMuted = modalPlayer.isMuted();
-            const currentVolume = modalPlayer.getVolume();
-            
-            activePlayer = 'float';
-            
-            const modal = document.getElementById('video-modal');
-            modal.classList.remove('show');
-            
-            const floatPlayerEl = document.getElementById('float-player');
-            floatPlayerEl.classList.add('show');
-            
-            floatPlayer.loadVideoById({
-                videoId: currentVideoId,
-                startSeconds: Math.floor(currentTime)
-            });
-            
-            // 音量とミュート状態を引き継ぎ
-            if (wasMuted) {
-                floatPlayer.mute();
-                isMuted = true;
-                document.querySelector('.volume-icon').textContent = '🔇';
-            } else {
-                floatPlayer.unMute();
-                floatPlayer.setVolume(currentVolume);
-                isMuted = false;
-                updateVolumeIcon(currentVolume);
-            }
-            
-            setTimeout(() => {
-                floatPlayer.playVideo();
-            }, 500);
         }
 
         function closeModal(event) {
             if (event && event.target !== event.currentTarget) return;
-            closeModalToFloat();
+            
+            try {
+                const modal = document.getElementById('video-modal');
+                modal.classList.remove('show');
+                if (modalPlayer && isModalPlayerReady) {
+                    modalPlayer.stopVideo();
+                }
+                if (activePlayer === 'modal') {
+                    activePlayer = null;
+                }
+            } catch (error) {
+                console.error('Error closing modal:', error);
+            }
         }
 
         function searchTracks() {
@@ -1069,7 +1072,9 @@
             
             const playlistContainer = document.getElementById('playlist-container');
             if (playlistContainer.firstChild) {
-                playlistContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => {
+                    playlistContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
             }
         }
 
@@ -1109,15 +1114,13 @@
                 item.innerHTML = `
                     <div class="track-number">${displayIndex + 1}</div>
                     <div class="track-info">
-                        <div class="track-title">${result.track.title}</div>
-                        <div class="track-artist">${result.track.artist} • ${result.albumName}</div>
+                        <div class="track-title">${escapeHtml(result.track.title)}</div>
+                        <div class="track-artist">${escapeHtml(result.track.artist)} • ${escapeHtml(result.albumName)}</div>
                     </div>
                 `;
                 
                 trackList.appendChild(item);
             });
-
-            container.scrollIntoView({ behavior: 'smooth' });
         }
 
         function playSearchResult(searchIndex) {
@@ -1156,7 +1159,6 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
-            // フロートプレイヤー
             floatPlayer = new YT.Player('float-player-iframe', {
                 playerVars: {
                     'autoplay': 0,
@@ -1166,11 +1168,11 @@
                 },
                 events: {
                     'onReady': onFloatPlayerReady,
-                    'onStateChange': onFloatPlayerStateChange
+                    'onStateChange': onFloatPlayerStateChange,
+                    'onError': onPlayerError
                 }
             });
 
-            // モーダルプレイヤー
             modalPlayer = new YT.Player('modal-player-iframe', {
                 playerVars: {
                     'autoplay': 0,
@@ -1180,7 +1182,8 @@
                 },
                 events: {
                     'onReady': onModalPlayerReady,
-                    'onStateChange': onModalPlayerStateChange
+                    'onStateChange': onModalPlayerStateChange,
+                    'onError': onPlayerError
                 }
             });
         }
@@ -1190,28 +1193,24 @@
             console.log('Float Player Ready');
             const savedVolume = localStorage.getItem('volume') || '100';
             floatPlayer.setVolume(parseInt(savedVolume));
+            
+            if (pendingPlayback && pendingPlayback.player === 'float') {
+                const { videoId, startTime } = pendingPlayback;
+                pendingPlayback = null;
+                showFloatPlayer(videoId, startTime);
+            }
         }
 
         function onFloatPlayerStateChange(event) {
             if (activePlayer !== 'float') return;
             
-            const states = {
-                '-1': 'UNSTARTED',
-                '0': 'ENDED',
-                '1': 'PLAYING',
-                '2': 'PAUSED',
-                '3': 'BUFFERING',
-                '5': 'CUED'
-            };
-            console.log('Float player state:', states[event.data]);
-            
-            if (event.data == YT.PlayerState.PLAYING) {
+            if (event.data === YT.PlayerState.PLAYING) {
                 document.getElementById('play-btn').textContent = '⏸';
-            } else {
+            } else if (event.data === YT.PlayerState.PAUSED) {
                 document.getElementById('play-btn').textContent = '▶️';
             }
             
-            if (event.data == YT.PlayerState.ENDED) {
+            if (event.data === YT.PlayerState.ENDED) {
                 nextTrack();
             }
         }
@@ -1219,407 +1218,32 @@
         function onModalPlayerReady() {
             isModalPlayerReady = true;
             console.log('Modal Player Ready');
+            const savedVolume = localStorage.getItem('volume') || '100';
+            modalPlayer.setVolume(parseInt(savedVolume));
         }
 
         function onModalPlayerStateChange(event) {
             if (activePlayer !== 'modal') return;
             
-            if (event.data == YT.PlayerState.PLAYING) {
+            if (event.data === YT.PlayerState.PLAYING) {
                 document.getElementById('play-btn').textContent = '⏸';
-            } else {
+            } else if (event.data === YT.PlayerState.PAUSED) {
                 document.getElementById('play-btn').textContent = '▶️';
             }
             
-            if (event.data == YT.PlayerState.ENDED) {
-                closeModalToFloat();
+            if (event.data === YT.PlayerState.ENDED) {
+                closeModal();
                 nextTrack();
             }
         }
 
-        function loadCSV() {
-            const url = CSV_URL;
-
-            document.getElementById('albums-container').innerHTML = '<div class="loading">読み込み中...</div>';
-
-            Papa.parse(url, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    processData(results.data);
-                },
-                error: function(error) {
-                    alert('CSVの読み込みに失敗しました: ' + error.message);
-                    document.getElementById('albums-container').innerHTML = '';
-                }
-            });
-        }
-
-        function processData(data) {
-            albums = {};
-            
-            if (data.length > 0) {
-                console.log('CSV列名:', Object.keys(data[0]));
-                console.log('最初の行:', data[0]);
-            }
-            
-            data.forEach(row => {
-                const albumName = row['枠名'];
-                const trackName = row['曲名'];
-                const artist = row['アーティスト'];
-                const url = row['URL'];
-                const date = row['年月日'];
-
-                if (!trackName || !url) {
-                    console.log('スキップされた行 (曲名またはURLが空):', row);
-                    return;
-                }
-
-                const finalAlbumName = albumName || 'すべての曲';
-
-                if (!albums[finalAlbumName]) {
-                    albums[finalAlbumName] = {
-                        name: finalAlbumName,
-                        tracks: [],
-                        thumbnail: null,
-                        date: date || null
-                    };
-                }
-
-                albums[finalAlbumName].tracks.push({
-                    title: trackName,
-                    artist: artist || 'Unknown Artist',
-                    url: url
-                });
-
-                if (albums[finalAlbumName].tracks.length === 1) {
-                    const videoId = extractVideoId(url);
-                    if (videoId) {
-                        albums[finalAlbumName].thumbnail = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-                    }
-                }
-            });
-
-            console.log('読み込まれたアルバム数:', Object.keys(albums).length);
-            console.log('各アルバムの曲数:', Object.keys(albums).map(name => `${name}: ${albums[name].tracks.length}曲`));
-            
-            if (Object.keys(albums).length === 0) {
-                document.getElementById('albums-container').innerHTML = 
-                    '<div class="loading">データが見つかりませんでした。<br>CSVに「曲名」と「URL」の列があることを確認してください。</div>';
-                return;
-            }
-
-            displayAlbums();
-        }
-
-        function displayAlbums() {
-            const container = document.getElementById('albums-container');
-            container.innerHTML = '';
-
-            const albumEntries = Object.keys(albums).map(name => ({
-                name: name,
-                dateStr: albums[name].date,
-                date: parseDate(albums[name].date),
-                album: albums[name]
-            }));
-
-            albumEntries.sort((a, b) => {
-                if (a.date && b.date) {
-                    if (sortOrder === 'desc') {
-                        return b.date - a.date;
-                    } else {
-                        return a.date - b.date;
-                    }
-                }
-                
-                if (a.date && !b.date) return -1;
-                if (!a.date && b.date) return 1;
-                
-                return a.name.localeCompare(b.name);
-            });
-
-            console.log('Sorted albums:', albumEntries.map(e => ({
-                name: e.name,
-                dateStr: e.dateStr,
-                date: e.date ? e.date.toISOString().split('T')[0] : 'no date'
-            })));
-
-            document.getElementById('album-count').textContent = `（${albumEntries.length}件）`;
-
-            albumEntries.forEach((entry, index) => {
-                const albumName = entry.name;
-                const album = entry.album;
-                const card = document.createElement('div');
-                card.className = 'album-card';
-                card.dataset.albumName = albumName;
-                card.onclick = function() { selectAlbum(albumName); };
-                
-                const thumbnailHtml = album.thumbnail 
-                    ? `<img src="${album.thumbnail}" alt="${album.name}">`
-                    : `<div class="placeholder">${index + 1}</div>`;
-                
-                card.innerHTML = `
-                    <div class="album-thumbnail">
-                        <div class="album-thumbnail-inner">${thumbnailHtml}</div>
-                        <div class="album-thumbnail-tooltip">${album.name}</div>
-                    </div>
-                    <div class="album-info">
-                        <h3>${album.name}</h3>
-                        <p>${album.tracks.length} 曲</p>
-                    </div>
-                `;
-                
-                container.appendChild(card);
-            });
-        }
-
-        function parseDate(dateStr) {
-            if (!dateStr) return null;
-            
-            const patterns = [
-                /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,
-                /(\d{4})年(\d{1,2})月(\d{1,2})日/
-            ];
-            
-            for (let pattern of patterns) {
-                const match = dateStr.match(pattern);
-                if (match) {
-                    const year = parseInt(match[1]);
-                    const month = parseInt(match[2]);
-                    const day = parseInt(match[3]);
-                    return new Date(year, month - 1, day);
-                }
-            }
-            
-            const isoDate = new Date(dateStr);
-            if (!isNaN(isoDate.getTime())) {
-                return isoDate;
-            }
-            
-            return null;
-        }
-
-        function extractDate(text) {
-            return parseDate(text);
-        }
-
-        function selectAlbum(albumName) {
-            currentAlbum = albumName;
-            currentTrackIndex = 0;
-            searchQuery = '';
-            isSearchMode = false;
-            document.getElementById('search-input').value = '';
-            
-            document.querySelectorAll('.album-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            
-            const selectedCard = document.querySelector(`.album-card[data-album-name="${CSS.escape(albumName)}"]`);
-            if (selectedCard) {
-                selectedCard.classList.add('active');
-            }
-
-            displayPlaylist();
-        }
-
-        function displayPlaylist() {
-            const album = albums[currentAlbum];
-            let container = document.getElementById('playlist-container');
-            
-            container.innerHTML = `
-                <div class="playlist-section">
-                    <div class="playlist-header">
-                        <h2>${album.name}</h2>
-                        <p>${album.tracks.length} 曲</p>
-                    </div>
-                    <div class="track-list" id="track-list"></div>
-                </div>
-            `;
-
-            const trackList = document.getElementById('track-list');
-            album.tracks.forEach((track, index) => {
-                const item = document.createElement('div');
-                item.className = 'track-item';
-                item.dataset.trackIndex = index;
-                item.onclick = function() { playTrack(index); };
-                
-                item.innerHTML = `
-                    <div class="track-number">${index + 1}</div>
-                    <div class="track-info">
-                        <div class="track-title">${track.title}</div>
-                        <div class="track-artist">${track.artist}</div>
-                    </div>
-                `;
-                
-                trackList.appendChild(item);
-            });
-
-            container.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function playTrack(index) {
-            if (!currentAlbum) {
-                console.error('No album selected');
-                return;
-            }
-
-            currentTrackIndex = index;
-            const track = albums[currentAlbum].tracks[index];
-            
-            console.log('=== Playing Track ===');
-            console.log('Title:', track.title);
-            console.log('Artist:', track.artist);
-            console.log('URL:', track.url);
-            console.log('Album:', currentAlbum);
-            console.log('Track Index:', index);
-            
-            const videoId = extractVideoId(track.url);
-            const startTime = extractStartTime(track.url);
-
-            console.log('Extracted Video ID:', videoId);
-            console.log('Start Time:', startTime);
-
-            if (videoId) {
-                try {
-                    document.getElementById('current-title').textContent = track.title;
-                    document.getElementById('current-artist').textContent = track.artist;
-                    document.getElementById('player').style.display = 'block';
-                    
-                    // フロートプレイヤーを表示
-                    showFloatPlayer(videoId, startTime);
-
-                    document.querySelectorAll('.track-item').forEach((item) => {
-                        const itemAlbum = item.dataset.albumName || currentAlbum;
-                        const itemIndex = parseInt(item.dataset.trackIndex);
-                        
-                        if (itemAlbum === currentAlbum && itemIndex === index) {
-                            item.classList.add('playing');
-                        } else {
-                            item.classList.remove('playing');
-                        }
-                    });
-                    
-                    console.log('Video load command sent successfully');
-                } catch (error) {
-                    console.error('Error loading video:', error);
-                    alert('動画の読み込みに失敗しました: ' + error.message);
-                }
-            } else {
-                console.error('Invalid video ID for URL:', track.url);
-                alert('無効なYouTube URLです: ' + track.url);
-            }
-        }
-
-        function extractVideoId(url) {
-            const patterns = [
-                /[?&]v=([^&]+)/,
-                /youtu\.be\/([^?&]+)/,
-                /embed\/([^?&]+)/
-            ];
-            
-            for (let pattern of patterns) {
-                const match = url.match(pattern);
-                if (match) return match[1];
-            }
-            return null;
-        }
-
-        function extractStartTime(url) {
-            const match = url.match(/[?&]t=(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-        }
-
-        function togglePlay() {
-            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
-            if (!currentPlayer) return;
-            
-            const state = currentPlayer.getPlayerState();
-            if (state === YT.PlayerState.PLAYING) {
-                currentPlayer.pauseVideo();
-            } else {
-                currentPlayer.playVideo();
-            }
-        }
-
-        function previousTrack() {
-            if (isSearchMode && searchResults.length > 0) {
-                const currentSearchIndex = getCurrentSearchIndex();
-                if (currentSearchIndex > 0) {
-                    playSearchResult(currentSearchIndex - 1);
-                }
-            } else if (currentAlbum) {
-                if (currentTrackIndex > 0) {
-                    playTrack(currentTrackIndex - 1);
-                }
-            }
-        }
-
-        function nextTrack() {
-            if (isSearchMode && searchResults.length > 0) {
-                const currentSearchIndex = getCurrentSearchIndex();
-                if (currentSearchIndex < searchResults.length - 1) {
-                    playSearchResult(currentSearchIndex + 1);
-                }
-            } else if (currentAlbum) {
-                const album = albums[currentAlbum];
-                if (currentTrackIndex < album.tracks.length - 1) {
-                    playTrack(currentTrackIndex + 1);
-                }
-            }
-        }
-
-        function getCurrentSearchIndex() {
-            for (let i = 0; i < searchResults.length; i++) {
-                if (searchResults[i].albumName === currentAlbum && 
-                    searchResults[i].trackIndex === currentTrackIndex) {
-                    return i;
-                }
-            }
-            return -1;
-        }
-
-        function changeVolume(value) {
-            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
-            if (!currentPlayer) return;
-            
-            // ミュート状態を解除
-            if (isMuted) {
-                currentPlayer.unMute();
-                isMuted = false;
-            }
-            
-            currentPlayer.setVolume(value);
-            updateVolumeIcon(value);
-            localStorage.setItem('volume', value);
-        }
-
-        function toggleMute() {
-            const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
-            if (!currentPlayer) return;
-            
-            isMuted = !isMuted;
-            
-            if (isMuted) {
-                currentPlayer.mute();
-                document.querySelector('.volume-icon').textContent = '🔇';
-            } else {
-                currentPlayer.unMute();
-                const volume = document.getElementById('volume-slider').value;
-                currentPlayer.setVolume(volume);
-                updateVolumeIcon(volume);
-            }
-        }
-
-        function updateVolumeIcon(volume) {
-            const icon = document.querySelector('.volume-icon');
-            if (volume == 0) {
-                icon.textContent = '🔇';
-            } else if (volume < 50) {
-                icon.textContent = '🔉';
-            } else {
-                icon.textContent = '🔊';
-            }
-        }
-    </script>
-</body>
-</html>
+        function onPlayerError(event) {
+            console.error('YouTube Player Error:', event.data);
+            const errorMessages = {
+                2: '無効なパラメータです',
+                5: 'HTML5プレイヤーのエラーが発生しました',
+                100: '動画が見つかりませんでした',
+                101: '動画の埋め込みが許可されていません',
+                150: '動画の埋め込みが許可されていません'
+            };
+            alert(errorMessages[event.data] || '動画の再生中にエラーが
