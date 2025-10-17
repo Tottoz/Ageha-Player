@@ -582,6 +582,132 @@
             left: -9999px;
         }
 
+        .float-player {
+            position: fixed;
+            bottom: 140px;
+            right: 20px;
+            width: 320px;
+            height: 180px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+            cursor: move;
+            transition: all 0.3s;
+        }
+
+        .float-player.show {
+            display: block;
+        }
+
+        .float-player:hover {
+            box-shadow: 0 6px 30px rgba(0,0,0,0.7);
+        }
+
+        .float-player-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .float-player:hover .float-player-controls {
+            opacity: 1;
+        }
+
+        .float-player-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .float-player-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .float-player iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .video-modal.show {
+            display: flex;
+        }
+
+        .video-modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+        }
+
+        .video-modal-close {
+            position: absolute;
+            top: -50px;
+            right: 0;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 1.5em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .video-modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .video-modal-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .video-modal-player iframe {
+            width: 100%;
+            height: 100%;
+        }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -656,6 +782,23 @@
 
     <div id="youtube-player"></div>
 
+    <div class="float-player" id="float-player">
+        <div class="float-player-controls">
+            <button class="float-player-btn" onclick="expandToModal()" title="拡大">⛶</button>
+            <button class="float-player-btn" onclick="closeFloatPlayer()" title="閉じる">✕</button>
+        </div>
+        <iframe id="float-player-iframe" allowfullscreen></iframe>
+    </div>
+
+    <div class="video-modal" id="video-modal" onclick="closeModal(event)">
+        <div class="video-modal-content" onclick="event.stopPropagation()">
+            <button class="video-modal-close" onclick="closeModal()">×</button>
+            <div class="video-modal-player">
+                <iframe id="modal-player-iframe" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
     <script>
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQJJFA4Jd-PqvUFdvUnen0RPPAxzbJT3IFlhFKcHk5i2LFM-dJAReBOFhMqcoqYNV_A_tqhTdNU_oYh/pub?gid=560825458&single=true&output=csv';
         
@@ -670,6 +813,10 @@
         let sortOrder = 'desc';
         let searchResults = [];
         let albumsExpanded = true;
+        let currentVideoId = null;
+        let currentStartTime = 0;
+        let floatPlayerDragging = false;
+        let floatPlayerOffset = { x: 0, y: 0 };
 
         function handleSearchKeydown(event) {
             if (event.key === 'Enter') {
@@ -735,7 +882,72 @@
             }
             
             loadCSV();
+            
+            // フロートプレイヤーのドラッグ機能
+            const floatPlayer = document.getElementById('float-player');
+            floatPlayer.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
         });
+
+        function startDrag(e) {
+            if (e.target.classList.contains('float-player-btn')) return;
+            floatPlayerDragging = true;
+            const floatPlayer = document.getElementById('float-player');
+            const rect = floatPlayer.getBoundingClientRect();
+            floatPlayerOffset.x = e.clientX - rect.left;
+            floatPlayerOffset.y = e.clientY - rect.top;
+            floatPlayer.style.cursor = 'grabbing';
+        }
+
+        function drag(e) {
+            if (!floatPlayerDragging) return;
+            const floatPlayer = document.getElementById('float-player');
+            floatPlayer.style.left = (e.clientX - floatPlayerOffset.x) + 'px';
+            floatPlayer.style.top = (e.clientY - floatPlayerOffset.y) + 'px';
+            floatPlayer.style.right = 'auto';
+            floatPlayer.style.bottom = 'auto';
+        }
+
+        function stopDrag() {
+            if (floatPlayerDragging) {
+                const floatPlayer = document.getElementById('float-player');
+                floatPlayer.style.cursor = 'move';
+                floatPlayerDragging = false;
+            }
+        }
+
+        function showFloatPlayer(videoId, startTime) {
+            currentVideoId = videoId;
+            currentStartTime = startTime;
+            const floatPlayer = document.getElementById('float-player');
+            const iframe = document.getElementById('float-player-iframe');
+            iframe.src = `https://www.youtube.com/embed/${videoId}?start=${startTime}&autoplay=1&controls=1`;
+            floatPlayer.classList.add('show');
+        }
+
+        function closeFloatPlayer() {
+            const floatPlayer = document.getElementById('float-player');
+            const iframe = document.getElementById('float-player-iframe');
+            floatPlayer.classList.remove('show');
+            iframe.src = '';
+        }
+
+        function expandToModal() {
+            const modal = document.getElementById('video-modal');
+            const modalIframe = document.getElementById('modal-player-iframe');
+            modalIframe.src = `https://www.youtube.com/embed/${currentVideoId}?start=${currentStartTime}&autoplay=1&controls=1`;
+            modal.classList.add('show');
+            closeFloatPlayer();
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('video-modal');
+            const modalIframe = document.getElementById('modal-player-iframe');
+            modal.classList.remove('show');
+            modalIframe.src = '';
+        }
 
         function searchTracks() {
             searchQuery = document.getElementById('search-input').value.toLowerCase().trim();
@@ -1181,6 +1393,9 @@
                     document.getElementById('current-title').textContent = track.title;
                     document.getElementById('current-artist').textContent = track.artist;
                     document.getElementById('player').style.display = 'block';
+                    
+                    // フロートプレイヤーを表示
+                    showFloatPlayer(videoId, startTime);
 
                     document.querySelectorAll('.track-item').forEach((item) => {
                         const itemAlbum = item.dataset.albumName || currentAlbum;
