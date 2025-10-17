@@ -962,6 +962,9 @@
             }
             
             const currentTime = floatPlayer.getCurrentTime();
+            const wasMuted = floatPlayer.isMuted();
+            const currentVolume = floatPlayer.getVolume();
+            
             activePlayer = 'modal';
             
             const modal = document.getElementById('video-modal');
@@ -972,20 +975,62 @@
                 startSeconds: Math.floor(currentTime)
             });
             
-            closeFloatPlayer();
+            // 音量とミュート状態を引き継ぎ
+            if (wasMuted) {
+                modalPlayer.mute();
+            } else {
+                modalPlayer.unMute();
+                modalPlayer.setVolume(currentVolume);
+            }
+            
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.classList.remove('show');
             
             setTimeout(() => {
                 modalPlayer.playVideo();
             }, 500);
         }
 
-        function closeModal(event) {
-            if (event && event.target !== event.currentTarget) return;
+        function closeModalToFloat() {
+            if (!isFloatPlayerReady) return;
+            
+            const currentTime = modalPlayer.getCurrentTime();
+            const wasMuted = modalPlayer.isMuted();
+            const currentVolume = modalPlayer.getVolume();
+            
+            activePlayer = 'float';
             
             const modal = document.getElementById('video-modal');
             modal.classList.remove('show');
-            modalPlayer.stopVideo();
-            activePlayer = null;
+            
+            const floatPlayerEl = document.getElementById('float-player');
+            floatPlayerEl.classList.add('show');
+            
+            floatPlayer.loadVideoById({
+                videoId: currentVideoId,
+                startSeconds: Math.floor(currentTime)
+            });
+            
+            // 音量とミュート状態を引き継ぎ
+            if (wasMuted) {
+                floatPlayer.mute();
+                isMuted = true;
+                document.querySelector('.volume-icon').textContent = '🔇';
+            } else {
+                floatPlayer.unMute();
+                floatPlayer.setVolume(currentVolume);
+                isMuted = false;
+                updateVolumeIcon(currentVolume);
+            }
+            
+            setTimeout(() => {
+                floatPlayer.playVideo();
+            }, 500);
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            closeModalToFloat();
         }
 
         function searchTracks() {
@@ -1186,7 +1231,7 @@
             }
             
             if (event.data == YT.PlayerState.ENDED) {
-                closeModal();
+                closeModalToFloat();
                 nextTrack();
             }
         }
@@ -1536,6 +1581,13 @@
         function changeVolume(value) {
             const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
             if (!currentPlayer) return;
+            
+            // ミュート状態を解除
+            if (isMuted) {
+                currentPlayer.unMute();
+                isMuted = false;
+            }
+            
             currentPlayer.setVolume(value);
             updateVolumeIcon(value);
             localStorage.setItem('volume', value);
@@ -1545,16 +1597,16 @@
             const currentPlayer = activePlayer === 'modal' ? modalPlayer : floatPlayer;
             if (!currentPlayer) return;
             
+            isMuted = !isMuted;
+            
             if (isMuted) {
+                currentPlayer.mute();
+                document.querySelector('.volume-icon').textContent = '🔇';
+            } else {
                 currentPlayer.unMute();
                 const volume = document.getElementById('volume-slider').value;
                 currentPlayer.setVolume(volume);
-                isMuted = false;
                 updateVolumeIcon(volume);
-            } else {
-                currentPlayer.mute();
-                isMuted = true;
-                document.querySelector('.volume-icon').textContent = '🔇';
             }
         }
 
