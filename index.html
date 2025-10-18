@@ -722,19 +722,197 @@
         }
 
         @media (max-width: 768px) {
+            .header {
+                padding: 20px 10px;
+                margin-bottom: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .theme-toggle {
+                top: 15px;
+                right: 10px;
+                gap: 5px;
+            }
+
+            .toggle-label {
+                font-size: 0.8em;
+            }
+
+            .search-section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
             .search-controls {
                 flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-box {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .search-input {
+                width: 100%;
+                padding: 12px 15px;
+                font-size: 16px;
+            }
+
+            .search-btn, .clear-btn {
+                width: 100%;
+                padding: 12px 20px;
             }
             
             .sort-controls {
-                justify-content: center;
+                width: 100%;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+
+            .sort-label {
+                width: 100%;
+                text-align: center;
+                margin-bottom: 8px;
+            }
+
+            .sort-btn {
+                flex: 1;
+                min-width: 120px;
+                padding: 10px 15px;
+                font-size: 0.85em;
+            }
+
+            .albums-section {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .albums-header h2 {
+                font-size: 1.2em;
+            }
+
+            .albums-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+            }
+
+            .album-card {
+                padding: 12px;
+            }
+
+            .album-info h3 {
+                font-size: 0.9em;
+            }
+
+            .album-info p {
+                font-size: 0.8em;
+            }
+
+            .playlist-section {
+                padding: 15px;
+                margin-bottom: 100px;
+            }
+
+            .playlist-header h2 {
+                font-size: 1.5em;
+            }
+
+            .track-item {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .track-number {
+                width: 30px;
+                font-size: 0.9em;
+            }
+
+            .track-info {
+                padding: 0 10px;
+            }
+
+            .track-title {
+                font-size: 0.95em;
+            }
+
+            .track-artist {
+                font-size: 0.85em;
+            }
+
+            .player {
+                padding: 12px 10px;
+            }
+
+            .player-content {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .now-playing {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+
+            .now-playing-title {
+                font-size: 0.95em;
+            }
+
+            .now-playing-artist {
+                font-size: 0.85em;
+            }
+
+            .player-controls {
+                gap: 10px;
+            }
+
+            .control-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1em;
+            }
+
+            .control-btn.play {
+                width: 50px;
+                height: 50px;
+            }
+
+            .volume-control {
+                margin-left: auto;
+                gap: 8px;
+            }
+
+            .volume-slider {
+                width: 80px;
             }
             
             .float-player {
-                width: 280px;
-                height: 157px;
-                bottom: 110px;
+                width: calc(100vw - 20px);
+                max-width: 320px;
+                height: auto;
+                aspect-ratio: 16/9;
+                bottom: 90px;
                 right: 10px;
+                left: 10px;
+            }
+
+            .video-modal-content {
+                width: 95%;
+                padding: 0 10px;
+            }
+
+            .video-modal-close {
+                top: -45px;
+                width: 35px;
+                height: 35px;
+                font-size: 1.3em;
+            }
+
+            .container {
+                padding: 10px;
             }
         }
     </style>
