@@ -744,7 +744,7 @@
         <div class="header">
             <div class="theme-toggle">
                 <span class="toggle-label">☀️</span>
-                <div class="toggle-switch" onclick="toggleTheme()"></div>
+                <div class="toggle-switch" id="theme-toggle"></div>
                 <span class="toggle-label">🌙</span>
             </div>
             <h1>🦋 Ageha Player 🎵</h1>
@@ -753,20 +753,20 @@
         <div class="search-section">
             <div class="search-controls">
                 <div class="search-box">
-                    <input type="text" class="search-input" id="search-input" placeholder="曲名またはアーティスト名で検索..." onkeydown="handleSearchKeydown(event)">
-                    <button class="search-btn" onclick="searchTracks()">🔍 検索</button>
-                    <button class="clear-btn" onclick="clearSearch()">クリア</button>
+                    <input type="text" class="search-input" id="search-input" placeholder="曲名またはアーティスト名で検索...">
+                    <button class="search-btn" id="search-btn">🔍 検索</button>
+                    <button class="clear-btn" id="clear-btn">クリア</button>
                 </div>
                 <div class="sort-controls">
                     <span class="sort-label">並び替え:</span>
-                    <button class="sort-btn" id="sort-desc-btn" onclick="setSortOrder('desc')">🔽 新しい順</button>
-                    <button class="sort-btn" id="sort-asc-btn" onclick="setSortOrder('asc')">🔼 古い順</button>
+                    <button class="sort-btn" id="sort-desc-btn">🔽 新しい順</button>
+                    <button class="sort-btn" id="sort-asc-btn">🔼 古い順</button>
                 </div>
             </div>
         </div>
 
         <div class="albums-section">
-            <div class="albums-header" onclick="toggleAlbums()">
+            <div class="albums-header" id="albums-header">
                 <h2>
                     <span class="toggle-icon" id="toggle-icon">▶</span>
                     配信枠一覧
@@ -786,28 +786,28 @@
                 <div class="now-playing-artist" id="current-artist">-</div>
             </div>
             <div class="player-controls">
-                <button class="control-btn" onclick="previousTrack()">⏮</button>
-                <button class="control-btn play" id="play-btn" onclick="togglePlay()">▶️</button>
-                <button class="control-btn" onclick="nextTrack()">⏭</button>
+                <button class="control-btn" id="prev-btn">⏮</button>
+                <button class="control-btn play" id="play-btn">▶️</button>
+                <button class="control-btn" id="next-btn">⏭</button>
             </div>
             <div class="volume-control">
-                <span class="volume-icon" onclick="toggleMute()">🔊</span>
-                <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100" oninput="changeVolume(this.value)">
+                <span class="volume-icon" id="volume-icon">🔊</span>
+                <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100">
             </div>
         </div>
     </div>
 
     <div class="float-player" id="float-player">
         <div class="float-player-controls">
-            <button class="float-player-btn" onclick="expandToModal()" title="拡大">⛶</button>
-            <button class="float-player-btn" onclick="closeFloatPlayer()" title="閉じる">✕</button>
+            <button class="float-player-btn" id="expand-btn" title="拡大">⛶</button>
+            <button class="float-player-btn" id="close-float-btn" title="閉じる">✕</button>
         </div>
         <div id="float-player-iframe"></div>
     </div>
 
-    <div class="video-modal" id="video-modal" onclick="closeModal(event)">
+    <div class="video-modal" id="video-modal">
         <div class="video-modal-content" onclick="event.stopPropagation()">
-            <button class="video-modal-close" onclick="closeModal()">×</button>
+            <button class="video-modal-close" id="close-modal-btn">×</button>
             <div class="video-modal-player">
                 <div id="modal-player-iframe"></div>
             </div>
@@ -900,6 +900,26 @@
                 container.classList.remove('expanded');
                 icon.textContent = '▶';
             }
+            
+            // イベントリスナーの設定
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('search-input').addEventListener('keydown', handleSearchKeydown);
+            document.getElementById('search-btn').addEventListener('click', searchTracks);
+            document.getElementById('clear-btn').addEventListener('click', clearSearch);
+            document.getElementById('sort-desc-btn').addEventListener('click', () => setSortOrder('desc'));
+            document.getElementById('sort-asc-btn').addEventListener('click', () => setSortOrder('asc'));
+            document.getElementById('albums-header').addEventListener('click', toggleAlbums);
+            document.getElementById('prev-btn').addEventListener('click', previousTrack);
+            document.getElementById('play-btn').addEventListener('click', togglePlay);
+            document.getElementById('next-btn').addEventListener('click', nextTrack);
+            document.getElementById('volume-icon').addEventListener('click', toggleMute);
+            document.getElementById('volume-slider').addEventListener('input', (e) => changeVolume(e.target.value));
+            document.getElementById('expand-btn').addEventListener('click', expandToModal);
+            document.getElementById('close-float-btn').addEventListener('click', closeFloatPlayer);
+            document.getElementById('close-modal-btn').addEventListener('click', () => closeModal());
+            document.getElementById('video-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'video-modal') closeModal();
+            });
             
             loadCSV();
             
@@ -1246,4 +1266,380 @@
                 101: '動画の埋め込みが許可されていません',
                 150: '動画の埋め込みが許可されていません'
             };
-            alert(errorMessages[event.data] || '動画の再生中にエラーが
+            alert(errorMessages[event.data] || '動画の再生中にエラーが発生しました');
+        }
+
+        function loadCSV() {
+            const url = CSV_URL;
+
+            document.getElementById('albums-container').innerHTML = '<div class="loading">読み込み中...</div>';
+
+            Papa.parse(url, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processData(results.data);
+                },
+                error: function(error) {
+                    console.error('CSV Load Error:', error);
+                    alert('CSVの読み込みに失敗しました: ' + error.message);
+                    document.getElementById('albums-container').innerHTML = 
+                        '<div class="loading">CSVの読み込みに失敗しました</div>';
+                }
+            });
+        }
+
+        function processData(data) {
+            albums = {};
+            
+            if (data.length > 0) {
+                console.log('CSV列名:', Object.keys(data[0]));
+            }
+            
+            data.forEach(row => {
+                const albumName = row['枠名'];
+                const trackName = row['曲名'];
+                const artist = row['アーティスト'];
+                const url = row['URL'];
+                const date = row['年月日'];
+
+                if (!trackName || !url) {
+                    return;
+                }
+
+                const finalAlbumName = albumName || 'すべての曲';
+
+                if (!albums[finalAlbumName]) {
+                    albums[finalAlbumName] = {
+                        name: finalAlbumName,
+                        tracks: [],
+                        thumbnail: null,
+                        date: date || null
+                    };
+                }
+
+                albums[finalAlbumName].tracks.push({
+                    title: trackName,
+                    artist: artist || 'Unknown Artist',
+                    url: url
+                });
+
+                if (albums[finalAlbumName].tracks.length === 1) {
+                    const videoId = extractVideoId(url);
+                    if (videoId) {
+                        albums[finalAlbumName].thumbnail = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                    }
+                }
+            });
+
+            console.log('読み込まれたアルバム数:', Object.keys(albums).length);
+            
+            if (Object.keys(albums).length === 0) {
+                document.getElementById('albums-container').innerHTML = 
+                    '<div class="loading">データが見つかりませんでした。<br>CSVに「曲名」と「URL」の列があることを確認してください。</div>';
+                return;
+            }
+
+            displayAlbums();
+        }
+
+        function displayAlbums() {
+            const container = document.getElementById('albums-container');
+            container.innerHTML = '';
+
+            const albumEntries = Object.keys(albums).map(name => ({
+                name: name,
+                dateStr: albums[name].date,
+                date: parseDate(albums[name].date),
+                album: albums[name]
+            }));
+
+            albumEntries.sort((a, b) => {
+                if (a.date && b.date) {
+                    return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
+                }
+                
+                if (a.date && !b.date) return -1;
+                if (!a.date && b.date) return 1;
+                
+                return a.name.localeCompare(b.name, 'ja');
+            });
+
+            document.getElementById('album-count').textContent = `（${albumEntries.length}件）`;
+
+            albumEntries.forEach((entry, index) => {
+                const albumName = entry.name;
+                const album = entry.album;
+                const card = document.createElement('div');
+                card.className = 'album-card';
+                if (currentAlbum === albumName && !isSearchMode) {
+                    card.classList.add('active');
+                }
+                card.dataset.albumName = albumName;
+                card.onclick = function() { selectAlbum(albumName); };
+                
+                const thumbnailHtml = album.thumbnail 
+                    ? `<img src="${album.thumbnail}" alt="${escapeHtml(album.name)}">`
+                    : `<div class="placeholder">${index + 1}</div>`;
+                
+                card.innerHTML = `
+                    <div class="album-thumbnail">
+                        <div class="album-thumbnail-inner">${thumbnailHtml}</div>
+                        <div class="album-thumbnail-tooltip">${escapeHtml(album.name)}</div>
+                    </div>
+                    <div class="album-info">
+                        <h3>${escapeHtml(album.name)}</h3>
+                        <p>${album.tracks.length} 曲</p>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            const patterns = [
+                /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/,
+                /(\d{4})年(\d{1,2})月(\d{1,2})日/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = dateStr.match(pattern);
+                if (match) {
+                    const year = parseInt(match[1]);
+                    const month = parseInt(match[2]);
+                    const day = parseInt(match[3]);
+                    return new Date(year, month - 1, day);
+                }
+            }
+            
+            const isoDate = new Date(dateStr);
+            if (!isNaN(isoDate.getTime())) {
+                return isoDate;
+            }
+            
+            return null;
+        }
+
+        function selectAlbum(albumName) {
+            currentAlbum = albumName;
+            currentTrackIndex = 0;
+            searchQuery = '';
+            isSearchMode = false;
+            document.getElementById('search-input').value = '';
+            
+            document.querySelectorAll('.album-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            const selectedCard = document.querySelector(`.album-card[data-album-name="${CSS.escape(albumName)}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('active');
+            }
+
+            displayPlaylist();
+        }
+
+        function displayPlaylist() {
+            const album = albums[currentAlbum];
+            let container = document.getElementById('playlist-container');
+            
+            container.innerHTML = `
+                <div class="playlist-section">
+                    <div class="playlist-header">
+                        <h2>${escapeHtml(album.name)}</h2>
+                        <p>${album.tracks.length} 曲</p>
+                    </div>
+                    <div class="track-list" id="track-list"></div>
+                </div>
+            `;
+
+            const trackList = document.getElementById('track-list');
+            album.tracks.forEach((track, index) => {
+                const item = document.createElement('div');
+                item.className = 'track-item';
+                item.dataset.trackIndex = index;
+                item.onclick = function() { playTrack(index); };
+                
+                item.innerHTML = `
+                    <div class="track-number">${index + 1}</div>
+                    <div class="track-info">
+                        <div class="track-title">${escapeHtml(track.title)}</div>
+                        <div class="track-artist">${escapeHtml(track.artist)}</div>
+                    </div>
+                `;
+                
+                trackList.appendChild(item);
+            });
+
+            setTimeout(() => {
+                container.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        function playTrack(index) {
+            if (!currentAlbum) {
+                console.error('No album selected');
+                return;
+            }
+
+            currentTrackIndex = index;
+            const track = albums[currentAlbum].tracks[index];
+            
+            const videoId = extractVideoId(track.url);
+            const startTime = extractStartTime(track.url);
+
+            if (videoId) {
+                try {
+                    document.getElementById('current-title').textContent = track.title;
+                    document.getElementById('current-artist').textContent = track.artist;
+                    document.getElementById('player').style.display = 'block';
+                    
+                    showFloatPlayer(videoId, startTime);
+
+                    document.querySelectorAll('.track-item').forEach((item) => {
+                        const itemAlbum = item.dataset.albumName || currentAlbum;
+                        const itemIndex = parseInt(item.dataset.trackIndex);
+                        
+                        if (itemAlbum === currentAlbum && itemIndex === index) {
+                            item.classList.add('playing');
+                        } else {
+                            item.classList.remove('playing');
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error loading video:', error);
+                    alert('動画の読み込みに失敗しました');
+                }
+            } else {
+                alert('無効なYouTube URLです');
+            }
+        }
+
+        function extractVideoId(url) {
+            const patterns = [
+                /[?&]v=([^&]+)/,
+                /youtu\.be\/([^?&]+)/,
+                /embed\/([^?&]+)/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        function extractStartTime(url) {
+            const match = url.match(/[?&]t=(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }
+
+        function togglePlay() {
+            const player = getActivePlayer();
+            if (!player) return;
+            
+            try {
+                const state = player.getPlayerState();
+                if (state === YT.PlayerState.PLAYING) {
+                    player.pauseVideo();
+                } else {
+                    player.playVideo();
+                }
+            } catch (error) {
+                console.error('Error toggling play:', error);
+            }
+        }
+
+        function previousTrack() {
+            if (isSearchMode && searchResults.length > 0) {
+                const currentSearchIndex = getCurrentSearchIndex();
+                if (currentSearchIndex > 0) {
+                    playSearchResult(currentSearchIndex - 1);
+                }
+            } else if (currentAlbum) {
+                if (currentTrackIndex > 0) {
+                    playTrack(currentTrackIndex - 1);
+                }
+            }
+        }
+
+        function nextTrack() {
+            if (isSearchMode && searchResults.length > 0) {
+                const currentSearchIndex = getCurrentSearchIndex();
+                if (currentSearchIndex < searchResults.length - 1) {
+                    playSearchResult(currentSearchIndex + 1);
+                }
+            } else if (currentAlbum) {
+                const album = albums[currentAlbum];
+                if (currentTrackIndex < album.tracks.length - 1) {
+                    playTrack(currentTrackIndex + 1);
+                }
+            }
+        }
+
+        function getCurrentSearchIndex() {
+            for (let i = 0; i < searchResults.length; i++) {
+                if (searchResults[i].albumName === currentAlbum && 
+                    searchResults[i].trackIndex === currentTrackIndex) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        function changeVolume(value) {
+            const player = getActivePlayer();
+            if (!player) {
+                if (isFloatPlayerReady) floatPlayer.setVolume(value);
+                if (isModalPlayerReady) modalPlayer.setVolume(value);
+            } else {
+                player.setVolume(value);
+            }
+            updateVolumeIcon(value);
+            localStorage.setItem('volume', value);
+        }
+
+        function toggleMute() {
+            const player = getActivePlayer();
+            if (!player) return;
+            
+            try {
+                if (isMuted) {
+                    player.unMute();
+                    const volume = document.getElementById('volume-slider').value;
+                    player.setVolume(volume);
+                    isMuted = false;
+                    updateVolumeIcon(volume);
+                } else {
+                    player.mute();
+                    isMuted = true;
+                    document.querySelector('.volume-icon').textContent = '🔇';
+                }
+            } catch (error) {
+                console.error('Error toggling mute:', error);
+            }
+        }
+
+        function updateVolumeIcon(volume) {
+            const icon = document.querySelector('.volume-icon');
+            if (volume == 0) {
+                icon.textContent = '🔇';
+            } else if (volume < 50) {
+                icon.textContent = '🔉';
+            } else {
+                icon.textContent = '🔊';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
