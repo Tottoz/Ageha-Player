@@ -1043,16 +1043,51 @@
             if (event && event.target !== event.currentTarget) return;
             
             try {
+                if (!isModalPlayerReady || activePlayer !== 'modal') {
+                    const modal = document.getElementById('video-modal');
+                    modal.classList.remove('show');
+                    return;
+                }
+                
+                // 現在の再生位置を取得
+                const currentTime = modalPlayer.getCurrentTime();
+                const playerState = modalPlayer.getPlayerState();
+                const wasPlaying = playerState === YT.PlayerState.PLAYING;
+                
+                // モーダルを閉じる
                 const modal = document.getElementById('video-modal');
                 modal.classList.remove('show');
-                if (modalPlayer && isModalPlayerReady) {
-                    modalPlayer.stopVideo();
+                
+                // フロートプレイヤーに切り替え
+                activePlayer = 'float';
+                const floatPlayerEl = document.getElementById('float-player');
+                floatPlayerEl.classList.add('show');
+                
+                // 同じ位置から再生を再開
+                floatPlayer.loadVideoById({
+                    videoId: currentVideoId,
+                    startSeconds: Math.floor(currentTime)
+                });
+                
+                // 再生状態を復元
+                if (wasPlaying) {
+                    setTimeout(() => {
+                        floatPlayer.playVideo();
+                    }, 500);
+                } else {
+                    setTimeout(() => {
+                        floatPlayer.pauseVideo();
+                    }, 500);
                 }
-                if (activePlayer === 'modal') {
-                    activePlayer = null;
-                }
+                
+                // モーダルプレイヤーを停止
+                modalPlayer.stopVideo();
+                
             } catch (error) {
                 console.error('Error closing modal:', error);
+                const modal = document.getElementById('video-modal');
+                modal.classList.remove('show');
+                activePlayer = null;
             }
         }
 
@@ -1252,7 +1287,13 @@
             }
             
             if (event.data === YT.PlayerState.ENDED) {
-                closeModal();
+                // 動画終了時はモーダルを閉じてフロートに戻し、次の曲へ
+                const modal = document.getElementById('video-modal');
+                modal.classList.remove('show');
+                modalPlayer.stopVideo();
+                activePlayer = 'float';
+                const floatPlayerEl = document.getElementById('float-player');
+                floatPlayerEl.classList.add('show');
                 nextTrack();
             }
         }
